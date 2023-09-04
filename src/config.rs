@@ -95,8 +95,14 @@ impl Display for Config {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "{}\n{}\n{}\n{}", self.tlb, self.page_table, self.data_cache, self.l2_cache)?;
 
-        if self.virtual_addresses_enabled {
-            writeln!(f, "The addresses read in are virtual addresses.")?;
+        writeln!(f, "The addresses read in are {} addresses.", if self.virtual_addresses_enabled { "virtual" } else { "physical" })?;
+
+        if !self.tlb_enabled {
+            writeln!(f, "TLB is disabled in this configuration.")?;
+        }
+
+        if !self.l2_cache_enabled {
+            writeln!(f, "L2 cache is disabled in this configuration.")?;
         }
 
         Ok(())
