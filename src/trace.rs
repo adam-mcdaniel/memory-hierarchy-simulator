@@ -1,6 +1,6 @@
-use core::fmt::{Debug, Formatter, Result};
+use core::fmt::{Display, Formatter, Result as FmtResult};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum Operation {
     Read(u64),
     Write(u64),
@@ -26,8 +26,8 @@ impl Operation {
     }
 }
 
-impl Debug for Operation {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+impl Display for Operation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             Self::Read(address) => write!(f, "R:{:03x}", address),
             Self::Write(address) => write!(f, "W:{:03x}", address),
@@ -42,7 +42,7 @@ pub struct BlockAddress {
     pub offset: u64,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Trace {
     pub operations: Vec<Operation>,
 }
@@ -63,8 +63,14 @@ impl Trace {
     }
 }
 
-impl Debug for Trace {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{:?}", self.operations)
+impl Display for Trace {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        for (i, operation) in self.operations.iter().enumerate() {
+            write!(f, "{}", operation)?;
+            if i != self.operations.len() - 1 {
+                writeln!(f)?;
+            }
+        }
+        Ok(())
     }
 }

@@ -3,58 +3,6 @@ use std::{
     fmt::{Display, Formatter, Result as FmtResult},
 };
 
-pub struct Config {
-    pub virtual_addresses_enabled: bool,
-    pub tlb_enabled: bool,
-    pub l2_cache_enabled: bool,
-
-    pub tlb: TLBConfig,
-    pub page_table: PageTableConfig,
-    pub data_cache: DataCacheConfig,
-    pub l2_cache: L2Cache,
-}
-
-impl Config {
-    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
-        let tlb = TLBConfig::from_buffer(buffer);
-        let page_table = PageTableConfig::from_buffer(buffer);
-        let data_cache = DataCacheConfig::from_buffer(buffer);
-        let l2_cache = L2Cache::from_buffer(buffer);
-
-        let virtual_addresses_enabled = get_bool(buffer, "Virtual addresses");
-        let tlb_enabled = get_bool(buffer, "TLB");
-        let l2_cache_enabled = get_bool(buffer, "L2 cache");
-
-        Self {
-            virtual_addresses_enabled,
-            tlb_enabled,
-            l2_cache_enabled,
-            tlb,
-            page_table,
-            data_cache,
-            l2_cache,
-        }
-    }
-
-    fn from_file(path: &str) -> Self {
-        let file = std::fs::File::open(path).unwrap();
-        let mut buffer = BufReader::new(file);
-        Self::from_buffer(&mut buffer)
-    }
-}
-
-impl Display for Config {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{}\n{}\n{}\n{}\nVirtual addresses: {}\nTLB: {}\nL2 cache: {}", self.tlb, self.page_table, self.data_cache, self.l2_cache, if self.virtual_addresses_enabled { "y" } else { "n" }, if self.tlb_enabled { "y" } else { "n" }, if self.l2_cache_enabled { "y" } else { "n" })
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self::from_file("trace.config")
-    }
-}
-
 fn get_header<R>(buffer: &mut BufReader<R>, text: &str) where R: Read {
     let mut line = String::new();
     while line.trim() == "" {
@@ -103,6 +51,64 @@ fn get_bool<R>(buffer: &mut BufReader<R>, text: &str) -> bool where R: Read {
     }
 }
 
+pub struct Config {
+    pub virtual_addresses_enabled: bool,
+    pub tlb_enabled: bool,
+    pub l2_cache_enabled: bool,
+
+    pub tlb: TLBConfig,
+    pub page_table: PageTableConfig,
+    pub data_cache: DataCacheConfig,
+    pub l2_cache: L2Cache,
+}
+
+impl Config {
+    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
+        let tlb = TLBConfig::from_buffer(buffer);
+        let page_table = PageTableConfig::from_buffer(buffer);
+        let data_cache = DataCacheConfig::from_buffer(buffer);
+        let l2_cache = L2Cache::from_buffer(buffer);
+
+        let virtual_addresses_enabled = get_bool(buffer, "Virtual addresses");
+        let tlb_enabled = get_bool(buffer, "TLB");
+        let l2_cache_enabled = get_bool(buffer, "L2 cache");
+
+        Self {
+            virtual_addresses_enabled,
+            tlb_enabled,
+            l2_cache_enabled,
+            tlb,
+            page_table,
+            data_cache,
+            l2_cache,
+        }
+    }
+
+    fn from_file(path: &str) -> Self {
+        let file = std::fs::File::open(path).unwrap();
+        let mut buffer = BufReader::new(file);
+        Self::from_buffer(&mut buffer)
+    }
+}
+
+impl Display for Config {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "{}\n{}\n{}\n{}", self.tlb, self.page_table, self.data_cache, self.l2_cache)?;
+
+        if self.virtual_addresses_enabled {
+            writeln!(f, "The addresses read in are virtual addresses.")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self::from_file("trace.config")
+    }
+}
+
 pub struct TLBConfig {
     pub number_of_sets: u64,
     pub set_size: u64,
@@ -116,6 +122,10 @@ impl TLBConfig {
         }
     }
 
+    pub fn get_index_bits(&self) -> u64 {
+        self.number_of_sets.trailing_zeros() as u64
+    }
+
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
         get_header(buffer, "Data TLB configuration");
         let number_of_sets = get_number(buffer, "Number of sets");
@@ -126,7 +136,7 @@ impl TLBConfig {
 
 impl Display for TLBConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        writeln!(f, "Data TLB configuration\nNumber of sets: {}\nSet size: {}", self.number_of_sets, self.set_size)
+        writeln!(f, "Data TLB contains {} sets.\nEach set contains {} entries.\nNumber of bits used for the index is {}.", self.number_of_sets, self.set_size, self.get_index_bits())
     }
 }
 
@@ -145,6 +155,14 @@ impl PageTableConfig {
         }
     }
 
+    pub fn get_index_bits(&self) -> u64 {
+        self.number_of_virtual_pages.trailing_zeros() as u64
+    }
+
+    pub fn get_offset_bits(&self) -> u64 {
+        self.page_size.trailing_zeros() as u64
+    }
+
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
         get_header(buffer, "Page Table configuration");
         let number_of_virtual_pages = get_number(buffer, "Number of virtual pages");
@@ -156,7 +174,7 @@ impl PageTableConfig {
 
 impl Display for PageTableConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        writeln!(f, "Page table configuration\nNumber of virtual pages: {}\nNumber of physical pages: {}\nPage size: {}", self.number_of_virtual_pages, self.number_of_physical_pages, self.page_size)
+        writeln!(f, "Number of virtual pages is {}.\nNumber of physical pages is {}.\nEach page contains {} bytes.\nNumber of bits used for the page table index is {}.\nNumber of bits used for the page offset is {}.", self.number_of_virtual_pages, self.number_of_physical_pages, self.page_size, self.get_index_bits(), self.get_offset_bits())
     }
 }
 
@@ -177,6 +195,14 @@ impl DataCacheConfig {
         }
     }
 
+    pub fn get_index_bits(&self) -> u64 {
+        self.number_of_sets.trailing_zeros() as u64
+    }
+
+    pub fn get_offset_bits(&self) -> u64 {
+        self.line_size.trailing_zeros() as u64
+    }
+
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
         get_header(buffer, "Data Cache configuration");
         let number_of_sets = get_number(buffer, "Number of sets");
@@ -189,7 +215,7 @@ impl DataCacheConfig {
 
 impl Display for DataCacheConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        writeln!(f, "Data Cache configuration\nNumber of sets: {}\nSet size: {}\nLine size: {}\nWrite through/no write allocate: {}", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "y" } else { "n" })
+        writeln!(f, "D-cache contains {} sets.\nEach set contains {} entries.\nEach line is {} bytes.\nThe cache uses a {}write-allocate and write-back policy.\nNumber of bits used for the index is {}.\nNumber of bits used for the offset is {}.", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "no " } else { "" }, self.get_index_bits(), self.get_offset_bits())
     }
 }
 
@@ -210,6 +236,14 @@ impl L2Cache {
         }
     }
 
+    pub fn get_index_bits(&self) -> u64 {
+        self.number_of_sets.trailing_zeros() as u64
+    }
+
+    pub fn get_offset_bits(&self) -> u64 {
+        self.line_size.trailing_zeros() as u64
+    }
+
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
         get_header(buffer, "L2 Cache configuration");
         let number_of_sets = get_number(buffer, "Number of sets");
@@ -222,6 +256,6 @@ impl L2Cache {
 
 impl Display for L2Cache {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        writeln!(f, "L2 Cache configuration\nNumber of sets: {}\nSet size: {}\nLine size: {}\nWrite through/no write allocate: {}", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "y" } else { "n" })
+        writeln!(f, "L2-cache contains {} sets.\nEach set contains {} entries.\nEach line is {} bytes.\nThe cache uses a {}write-allocate and write-back policy.\nNumber of bits used for the index is {}.\nNumber of bits used for the offset is {}.\n", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "no " } else { "" }, self.get_index_bits(), self.get_offset_bits())
     }
 }
