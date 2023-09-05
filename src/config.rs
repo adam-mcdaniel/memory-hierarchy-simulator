@@ -3,53 +3,7 @@ use std::{
     fmt::{Display, Formatter, Result as FmtResult},
 };
 
-fn get_header<R>(buffer: &mut BufReader<R>, text: &str) where R: Read {
-    let mut line = String::new();
-    while line.trim() == "" {
-        buffer.read_line(&mut line).unwrap();
-    }
-
-    if line.trim() != text {
-        panic!("Expected \"{}\", got \"{}\"", text, line.trim());
-    }
-}
-
-fn get_number<R>(buffer: &mut BufReader<R>, text: &str) -> u64 where R: Read {
-    let mut line = String::new();
-    while line.trim() == "" {
-        buffer.read_line(&mut line).unwrap();
-    }
-    let mut split = line.split(':');
-    if split.clone().count() != 2 {
-        panic!("Expected \"{}: {{number}}\", got \"{}\"", text, line.trim());
-    }
-    if split.next().unwrap().trim() != text {
-        panic!("Expected \"{}: {{number}}\", got \"{}\"", text, line.trim());
-    }
-    split.next().unwrap().trim().parse::<u64>().unwrap()
-}
-
-fn get_bool<R>(buffer: &mut BufReader<R>, text: &str) -> bool where R: Read {
-    let mut line = String::new();
-    while line.trim() == "" {
-        buffer.read_line(&mut line).unwrap();
-    }
-    let mut split = line.split(':');
-    if split.clone().count() != 2 {
-        panic!("Expected \"{}: {{bool}}\", got \"{}\"", text, line.trim());
-    }
-    if split.next().unwrap().trim() != text {
-        panic!("Expected \"{}: {{bool}}\", got \"{}\"", text, line.trim());
-    }
-    let value = split.next().unwrap().trim();
-    if value == "y" || value == "Y" {
-        true
-    } else if value == "n" || value == "N" {
-        false
-    } else {
-        panic!("Expected \"{}: {{bool}}\", got \"{}\"", text, line.trim());
-    }
-}
+use super::{get_header, get_decimal, get_bool};
 
 pub struct Config {
     pub virtual_addresses_enabled: bool,
@@ -69,9 +23,9 @@ impl Config {
         let data_cache = DataCacheConfig::from_buffer(buffer);
         let l2_cache = L2Cache::from_buffer(buffer);
 
-        let virtual_addresses_enabled = get_bool(buffer, "Virtual addresses");
-        let tlb_enabled = get_bool(buffer, "TLB");
-        let l2_cache_enabled = get_bool(buffer, "L2 cache");
+        let virtual_addresses_enabled = get_bool(buffer, Some("Virtual addresses")).1;
+        let tlb_enabled = get_bool(buffer, Some("TLB")).1;
+        let l2_cache_enabled = get_bool(buffer, Some("L2 cache")).1;
 
         Self {
             virtual_addresses_enabled,
@@ -134,8 +88,8 @@ impl TLBConfig {
 
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
         get_header(buffer, "Data TLB configuration");
-        let number_of_sets = get_number(buffer, "Number of sets");
-        let set_size = get_number(buffer, "Set size");
+        let number_of_sets = get_decimal(buffer, Some("Number of sets")).1;
+        let set_size = get_decimal(buffer, Some("Set size")).1;
         Self::new(number_of_sets, set_size)
     }
 }
@@ -171,9 +125,9 @@ impl PageTableConfig {
 
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
         get_header(buffer, "Page Table configuration");
-        let number_of_virtual_pages = get_number(buffer, "Number of virtual pages");
-        let number_of_physical_pages = get_number(buffer, "Number of physical pages");
-        let page_size = get_number(buffer, "Page size");
+        let number_of_virtual_pages = get_decimal(buffer, Some("Number of virtual pages")).1;
+        let number_of_physical_pages = get_decimal(buffer, Some("Number of physical pages")).1;
+        let page_size = get_decimal(buffer, Some("Page size")).1;
         Self::new(number_of_virtual_pages, number_of_physical_pages, page_size)
     }
 }
@@ -211,17 +165,17 @@ impl DataCacheConfig {
 
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
         get_header(buffer, "Data Cache configuration");
-        let number_of_sets = get_number(buffer, "Number of sets");
-        let set_size = get_number(buffer, "Set size");
-        let line_size = get_number(buffer, "Line size");
-        let write_through = get_bool(buffer, "Write through/no write allocate");
+        let number_of_sets = get_decimal(buffer, Some("Number of sets")).1;
+        let set_size = get_decimal(buffer, Some("Set size")).1;
+        let line_size = get_decimal(buffer, Some("Line size")).1;
+        let write_through = get_bool(buffer, Some("Write through/no write allocate")).1;
         Self::new(number_of_sets, set_size, line_size, write_through)
     }
 }
 
 impl Display for DataCacheConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        writeln!(f, "D-cache contains {} sets.\nEach set contains {} entries.\nEach line is {} bytes.\nThe cache uses a {}write-allocate and write-back policy.\nNumber of bits used for the index is {}.\nNumber of bits used for the offset is {}.", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "no " } else { "" }, self.get_index_bits(), self.get_offset_bits())
+        writeln!(f, "D-cache contains {} sets.\nEach set contains {} entries.\nEach line is {} bytes.\nThe cache uses a {}write-allocate and write-{} policy.\nNumber of bits used for the index is {}.\nNumber of bits used for the offset is {}.", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "no " } else { "" }, if self.write_through { "through" } else {"back"}, self.get_index_bits(), self.get_offset_bits())
     }
 }
 
@@ -252,16 +206,16 @@ impl L2Cache {
 
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
         get_header(buffer, "L2 Cache configuration");
-        let number_of_sets = get_number(buffer, "Number of sets");
-        let set_size = get_number(buffer, "Set size");
-        let line_size = get_number(buffer, "Line size");
-        let write_through = get_bool(buffer, "Write through/no write allocate");
+        let number_of_sets = get_decimal(buffer, Some("Number of sets")).1;
+        let set_size = get_decimal(buffer, Some("Set size")).1;
+        let line_size = get_decimal(buffer, Some("Line size")).1;
+        let write_through = get_bool(buffer, Some("Write through/no write allocate")).1;
         Self::new(number_of_sets, set_size, line_size, write_through)
     }
 }
 
 impl Display for L2Cache {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        writeln!(f, "L2-cache contains {} sets.\nEach set contains {} entries.\nEach line is {} bytes.\nThe cache uses a {}write-allocate and write-back policy.\nNumber of bits used for the index is {}.\nNumber of bits used for the offset is {}.\n", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "no " } else { "" }, self.get_index_bits(), self.get_offset_bits())
+        writeln!(f, "L2-cache contains {} sets.\nEach set contains {} entries.\nEach line is {} bytes.\nThe cache uses a {}write-allocate and write-{} policy.\nNumber of bits used for the index is {}.\nNumber of bits used for the offset is {}.\n", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "no " } else { "" }, if self.write_through { "through" } else {"back"}, self.get_index_bits(), self.get_offset_bits())
     }
 }

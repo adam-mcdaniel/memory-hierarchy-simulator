@@ -1,5 +1,7 @@
 use core::fmt::{Display, Formatter, Result as FmtResult};
 
+use super::{get_header, get_decimal, get_hexadecimal, get_bool};
+
 #[derive(Clone, Copy, Debug)]
 pub enum Operation {
     Read(u64),
@@ -10,17 +12,14 @@ impl Operation {
     fn from_stdin() -> Option<Self> {
         // <accesstype>:<hexaddress>
         // where <accesstype> is either R or W
-        let mut line = String::new();
-        std::io::stdin().read_line(&mut line).unwrap();
-        let mut split = line.split(':');
-        if split.clone().count() != 2 {
-            return None;
-        }
-        let access_type = split.next().unwrap();
-        let address = split.next().unwrap();
-        match access_type {
-            "R" => Some(Self::Read(u64::from_str_radix(address.trim(), 16).unwrap())),
-            "W" => Some(Self::Write(u64::from_str_radix(address.trim(), 16).unwrap())),
+        let stdin = std::io::stdin();
+        let buffer = &mut std::io::BufReader::new(stdin.lock());
+        
+        let (access_type, address) = get_hexadecimal(buffer, None);
+
+        match access_type.as_str() {
+            "R" => Some(Self::Read(address)),
+            "W" => Some(Self::Write(address)),
             _ => None,
         }
     }
