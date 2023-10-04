@@ -26,10 +26,12 @@ pub(crate) fn get_header<R>(buffer: &mut BufReader<R>, text: &str) where R: Read
 
 /// Read a line from the buffer. Treat the line as a key value pair. If the key doesn't match the given text, panic.
 /// Return the key and the value parsed as a decimal number.
-pub(crate) fn get_decimal<R>(buffer: &mut BufReader<R>, text: Option<&str>) -> (String, u64) where R: Read {
+pub(crate) fn get_decimal<R>(buffer: &mut BufReader<R>, text: Option<&str>) -> Option<(String, u64)> where R: Read {
     let mut line = String::new();
     while line.trim() == "" {
-        buffer.read_line(&mut line).unwrap();
+        if buffer.read_line(&mut line).unwrap() == 0 {
+            return None;
+        }
     }
     let mut split = line.split(':');
     let first = split.next().unwrap().trim();
@@ -42,15 +44,17 @@ pub(crate) fn get_decimal<R>(buffer: &mut BufReader<R>, text: Option<&str>) -> (
             panic!("Expected \"{:?}: {{number}}\", got \"{}\"", text, line.trim());
         }
     }
-    (first.to_owned(), split.next().unwrap().trim().parse::<u64>().unwrap())
+    Some((first.to_owned(), split.next().unwrap().trim().parse::<u64>().unwrap()))
 }
 
 /// Read a line from the buffer. Treat the line as a key value pair. If the key doesn't match the given text, panic.
 /// Return the key and the value parsed as a hexadecimal number.
-pub(crate) fn get_hexadecimal<R>(buffer: &mut BufReader<R>, text: Option<&str>) -> (String, u64) where R: Read {
+pub(crate) fn get_hexadecimal<R>(buffer: &mut BufReader<R>, text: Option<&str>) -> Option<(String, u64)> where R: Read {
     let mut line = String::new();
     while line.trim() == "" {
-        buffer.read_line(&mut line).unwrap();
+        if buffer.read_line(&mut line).unwrap() == 0 {
+            return None;
+        }
     }
     let mut split = line.split(':');
     let first = split.next().unwrap().trim();
@@ -64,15 +68,17 @@ pub(crate) fn get_hexadecimal<R>(buffer: &mut BufReader<R>, text: Option<&str>) 
         }
     }
     let hex_str = split.next().unwrap().trim();
-    (first.to_owned(), u64::from_str_radix(&hex_str, 16).unwrap())
+    Some((first.to_owned(), u64::from_str_radix(&hex_str, 16).unwrap()))
 }
 
 /// Read a line from the buffer. Treat the line as a key value pair. If the key doesn't match the given text, panic.
 /// Return the key and the value parsed as a boolean value (read as "y" for true or "n" for false).
-pub(crate) fn get_bool<R>(buffer: &mut BufReader<R>, text: Option<&str>) -> (String, bool) where R: Read {
+pub(crate) fn get_bool<R>(buffer: &mut BufReader<R>, text: Option<&str>) -> Option<(String, bool)> where R: Read {
     let mut line = String::new();
     while line.trim() == "" {
-        buffer.read_line(&mut line).unwrap();
+        if buffer.read_line(&mut line).unwrap() == 0 {
+            return None;
+        }
     }
     let mut split = line.split(':');
     let first = split.next().unwrap().trim();
@@ -87,9 +93,9 @@ pub(crate) fn get_bool<R>(buffer: &mut BufReader<R>, text: Option<&str>) -> (Str
     }
     let value = split.next().unwrap().trim();
     if value == "y" || value == "Y" {
-        (first.to_owned(), true)
+        Some((first.to_owned(), true))
     } else if value == "n" || value == "N" {
-        (first.to_owned(), false)
+        Some((first.to_owned(), false))
     } else {
         panic!("Expected \"{{bool}}\", got \"{}\"", value);
     }

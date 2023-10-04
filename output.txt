@@ -1,0 +1,426 @@
+   Compiling memory-hierarchy v0.1.0 (/home/adam/Documentos/memhier/memory-hierarchy)
+warning: unused import: `std::f32::consts::E`
+ --> src/main.rs:1:5
+  |
+1 | use std::f32::consts::E;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: `memory-hierarchy` (bin "memory-hierarchy") generated 1 warning (run `cargo fix --bin "memory-hierarchy"` to apply 1 suggestion)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.45s
+     Running `target/debug/memory-hierarchy ../trace.dat`
+Data TLB contains 2 sets.
+Each set contains 1 entries.
+Number of bits used for the index is 1.
+
+Number of virtual pages is 64.
+Number of physical pages is 4.
+Each page contains 256 bytes.
+Number of bits used for the page table index is 6.
+Number of bits used for the page offset is 8.
+
+D-cache contains 4 sets.
+Each set contains 1 entries.
+Each line is 16 bytes.
+The cache uses a write-allocate and write-back policy.
+Number of bits used for the index is 2.
+Number of bits used for the offset is 4.
+
+L2-cache contains 16 sets.
+Each set contains 4 entries.
+Each line is 16 bytes.
+The cache uses a no write-allocate and write-through policy.
+Number of bits used for the index is 4.
+Number of bits used for the offset is 4.
+
+The addresses read in are virtual addresses.
+TLB is disabled in this configuration.
+
+Reading trace from file "../trace.dat"...
+Done reading trace:
+R:c84
+R:81c
+R:14c
+R:c84
+R:400
+R:148
+R:144
+R:c80
+R:008
+Page table:
+PageTable {
+    virtual_pages: 64,
+    physical_pages: 4,
+    page_size: 256,
+    entries: [
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    ],
+    allocated_physical_pages: 0,
+    physical_page_bookkeeping: [
+        0,
+        0,
+        0,
+        0,
+    ],
+}
+Index bits: 6, offset bits: 8
+0: R:c84, 00000c84 translated to 00000084, miss
+Virtual page number:  c, offset: 84
+Physical page number: 0, offset: 84
+address: 00000084 00000000000000000000000010000100
+tag:     00000002 00000000000000000000000010
+index:   00000000                           00
+offset:  00000004                             0100
+Cache {
+    sets: [
+        Set {
+            blocks: [
+                Some(
+                    Block {
+                        tag: 2,
+                        index: 0,
+                        dirty: false,
+                        size: 64,
+                        last_access: 0,
+                        first_access: 0,
+                    },
+                ),
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                None,
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                None,
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                None,
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+    ],
+    associativity: 4,
+    evict_policy: LRU,
+}
+1: R:81c, 0000081c translated to 0000001c, miss
+Virtual page number:  8, offset: 1c
+Physical page number: 0, offset: 1c
+address: 0000001c 00000000000000000000000000011100
+tag:     00000000 00000000000000000000000000
+index:   00000001                           01
+offset:  0000000c                             1100
+Cache {
+    sets: [
+        Set {
+            blocks: [
+                Some(
+                    Block {
+                        tag: 2,
+                        index: 0,
+                        dirty: false,
+                        size: 64,
+                        last_access: 0,
+                        first_access: 0,
+                    },
+                ),
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                Some(
+                    Block {
+                        tag: 0,
+                        index: 1,
+                        dirty: false,
+                        size: 64,
+                        last_access: 1,
+                        first_access: 1,
+                    },
+                ),
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                None,
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                None,
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+    ],
+    associativity: 4,
+    evict_policy: LRU,
+}
+2: R:14c, 0000014c translated to 0000004c, miss
+Virtual page number:  1, offset: 4c
+Physical page number: 0, offset: 4c
+address: 0000004c 00000000000000000000000001001100
+tag:     00000001 00000000000000000000000001
+index:   00000000                           00
+offset:  0000000c                             1100
+Cache {
+    sets: [
+        Set {
+            blocks: [
+                Some(
+                    Block {
+                        tag: 2,
+                        index: 0,
+                        dirty: false,
+                        size: 64,
+                        last_access: 0,
+                        first_access: 0,
+                    },
+                ),
+                Some(
+                    Block {
+                        tag: 1,
+                        index: 0,
+                        dirty: false,
+                        size: 64,
+                        last_access: 2,
+                        first_access: 2,
+                    },
+                ),
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                Some(
+                    Block {
+                        tag: 0,
+                        index: 1,
+                        dirty: false,
+                        size: 64,
+                        last_access: 1,
+                        first_access: 1,
+                    },
+                ),
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                None,
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                None,
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+    ],
+    associativity: 4,
+    evict_policy: LRU,
+}
+3: R:c84, 00000c84 translated to 00000084, hit
+Virtual page number:  c, offset: 84
+Physical page number: 0, offset: 84
+address: 00000084 00000000000000000000000010000100
+tag:     00000002 00000000000000000000000010
+index:   00000000                           00
+offset:  00000004                             0100
+Cache {
+    sets: [
+        Set {
+            blocks: [
+                Some(
+                    Block {
+                        tag: 2,
+                        index: 0,
+                        dirty: false,
+                        size: 64,
+                        last_access: 3,
+                        first_access: 0,
+                    },
+                ),
+                Some(
+                    Block {
+                        tag: 1,
+                        index: 0,
+                        dirty: false,
+                        size: 64,
+                        last_access: 2,
+                        first_access: 2,
+                    },
+                ),
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                Some(
+                    Block {
+                        tag: 0,
+                        index: 1,
+                        dirty: false,
+                        size: 64,
+                        last_access: 1,
+                        first_access: 1,
+                    },
+                ),
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                None,
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+        Set {
+            blocks: [
+                None,
+                None,
+                None,
+                None,
+            ],
+            block_size: 64,
+            evict_policy: LRU,
+        },
+    ],
+    associativity: 4,
+    evict_policy: LRU,
+}
+Evicting page table entry at index 8
+thread 'main' panicked at 'index out of bounds: the len is 4 but the index is 8', src/pagetable.rs:121:9
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
