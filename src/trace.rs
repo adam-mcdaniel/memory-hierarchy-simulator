@@ -1,7 +1,7 @@
+use super::{get_hexadecimal, SimulatorConfig};
 use core::fmt::{Display, Formatter, Result as FmtResult};
-use super::{SimulatorConfig, get_hexadecimal};
 
-use std::io::{Read, BufReader};
+use std::io::{BufReader, Read};
 
 /// A memory access operation to be performed by the simulator.
 #[derive(Clone, Copy, Debug)]
@@ -20,7 +20,10 @@ impl Operation {
         Self::from_buffer(&mut buffer)
     }
 
-    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Option<Self> where R: Read {
+    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Option<Self>
+    where
+        R: Read,
+    {
         let (access_type, address) = get_hexadecimal(buffer, None)?;
 
         match access_type.as_str() {
@@ -77,7 +80,6 @@ pub struct BlockAddress {
     /// The offset is used to locate the value accessed in the cache line.
     pub offset: u64,
 
-
     /// The number of bits in the tag.
     pub tag_bits: u64,
     /// The number of bits in the index.
@@ -91,15 +93,27 @@ impl BlockAddress {
         let tag = address >> (index_bits + offset_bits);
         let index = (address >> offset_bits) & ((1 << index_bits) - 1);
         let offset = address & ((1 << offset_bits) - 1);
-        
+
         let tag_bits = 32 - index_bits - offset_bits;
 
-        eprintln!("address: {x:08x} {x:032b}", x=address);
-        eprintln!("tag:     {x:08x} {x:0bits$b}", x=tag, bits=tag_bits as usize);
+        eprintln!("address: {x:08x} {x:032b}", x = address);
+        eprintln!(
+            "tag:     {x:08x} {x:0bits$b}",
+            x = tag,
+            bits = tag_bits as usize
+        );
         let space = " ".repeat(tag_bits as usize);
-        eprintln!("index:   {x:08x} {space}{x:0bits$b}", x=index, bits=index_bits as usize);
+        eprintln!(
+            "index:   {x:08x} {space}{x:0bits$b}",
+            x = index,
+            bits = index_bits as usize
+        );
         let space = " ".repeat((tag_bits + index_bits) as usize);
-        eprintln!("offset:  {x:08x} {space}{x:0bits$b}", x=offset, bits=offset_bits as usize);
+        eprintln!(
+            "offset:  {x:08x} {space}{x:0bits$b}",
+            x = offset,
+            bits = offset_bits as usize
+        );
 
         Self {
             tag_bits,
@@ -133,7 +147,9 @@ impl BlockAddress {
 
 impl Display for BlockAddress {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let addr = (self.tag << self.index_bits + self.offset_bits) | (self.index << self.offset_bits) | self.offset;
+        let addr = (self.tag << self.index_bits + self.offset_bits)
+            | (self.index << self.offset_bits)
+            | self.offset;
         write!(f, "{:03x}", addr)
     }
 }
@@ -184,15 +200,15 @@ impl Trace {
         trace
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=&Operation> {
+    pub fn iter(&self) -> impl Iterator<Item = &Operation> {
         self.operations.iter()
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item=&mut Operation> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Operation> {
         self.operations.iter_mut()
     }
 
-    pub fn into_iter(self) -> impl Iterator<Item=Operation> {
+    pub fn into_iter(self) -> impl Iterator<Item = Operation> {
         self.operations.into_iter()
     }
 

@@ -1,9 +1,16 @@
 use super::BlockAddress;
+use log::{debug, error, info, trace, warn};
 
+/// This encodes the eviction policy for a generic cache.
+/// Whenever a block is evicted from a set, this is used to
+/// select the block to evict from the given set.
 #[derive(Copy, Clone, Debug)]
 pub enum EvictionPolicy {
+    /// Evict the least recently used block from the set.
     LRU,
+    /// Evict the least recently block loaded into the set (first-in-first-out).
     FIFO,
+    /// Evict a random a block from the set.
     Random,
 }
 
@@ -12,19 +19,25 @@ impl EvictionPolicy {
     fn evict(&self, set: &mut Set) -> Option<Block> {
         // Is the set full?
         if !set.is_full() {
-            // The set is not full, so there is no block to evict
+            // The set is not full, so there is no block to evict.
+            trace!("No need to evict a block; set is not full");
             return None;
         }
 
         // Get the first block in the set
         let tags = set.get_tags();
+        // If we've gotten to this point, there *must* must be at least one block
+        // so the list of tags in the set cannot be empty.
         assert!(!tags.is_empty());
+        // Get the tag of the first block in the set.
         let first_tag = tags[0];
 
         match self {
+            // If we're using the first-in-first-out policy
             Self::FIFO => {
-                let mut oldest_block_seen = *set.get_block_with_tag(first_tag).unwrap();
-                
+                // A variable to keep track of the oldest block we've seen so far
+                let mut oldest_block_seen = *set.get_block_with_tag(first_tag).unwrap(); // Initialized to the first block in the set.
+
                 // Find the block with the oldest fist access time (skip the first one we already grabbed)
                 for tag in tags.iter().skip(1) {
                     let block = *set.get_block_with_tag(*tag).unwrap();
@@ -37,18 +50,21 @@ impl EvictionPolicy {
                 // Return the block to evict
                 let result = Some(oldest_block_seen);
                 // Evict the block
+                trace!("FIFO policy evicting block {oldest_block_seen:?}");
                 set.evict_tag(oldest_block_seen.get_tag());
 
                 result
-            },
+            }
 
             Self::LRU => {
-                let mut oldest_block_seen = *set.get_block_with_tag(first_tag).unwrap();
-                
+                // A variable to keep track of the oldest block we've seen so far
+                let mut oldest_block_seen = *set.get_block_with_tag(first_tag).unwrap(); // Initialized to the first block in the set.
+
                 // Find the block with the oldest last access time (skip the first one we already grabbed)
                 for tag in tags.iter().skip(1) {
                     let block = *set.get_block_with_tag(*tag).unwrap();
                     // Was this block accessed before the oldest block?
+                    // trace!("Checking block {block:?}");
                     if block.last_access < oldest_block_seen.last_access {
                         oldest_block_seen = block;
                     }
@@ -57,23 +73,25 @@ impl EvictionPolicy {
                 // Return the block to evict
                 let result = Some(oldest_block_seen);
                 // Evict the block
+                trace!("LRU policy evicting block {oldest_block_seen:?}");
                 set.evict_tag(oldest_block_seen.get_tag());
                 // Return the block to evict
                 result
-            },
+            }
 
             Self::Random => {
                 // Pick a random block to evict
                 let random_index = rand::random::<usize>() % tags.len();
                 let random_tag = tags[random_index];
-                
+
                 // Return the block to evict
                 let result = *set.get_block_with_tag(random_tag).unwrap();
                 // Evict the block
+                trace!("Evicting random block with tag {random_tag:x}");
                 set.evict_tag(random_tag);
                 // Return the block to evict
                 Some(result)
-            },
+            }
         }
     }
 }
@@ -104,10 +122,14 @@ pub struct Block {
 }
 
 impl Block {
+    /// Construct a new block with the given tag, set index, and the current access time
+    /// of the creation of the block.
     pub fn new(tag: u64, index: u64, size: u64, current_access_time: u64) -> Self {
+        trace!("Creating new block in set #{index} with tag={tag:x}, time={current_access_time}, size={size}");
         Self {
             tag,
             index,
+            // The block is loaded in clean.
             dirty: false,
             size,
             last_access: current_access_time,
@@ -146,6 +168,11 @@ impl Block {
     /// This sets the dirty bit to true.
     /// This also updates the last access time.
     pub fn write(&mut self, current_access_time: u64) {
+        trace!(
+            "Wrote to block with tag={:x} in set #{}",
+            self.get_tag(),
+            self.get_index()
+        );
         self.dirty = true;
         self.last_access = current_access_time;
     }
@@ -154,6 +181,11 @@ impl Block {
     /// This also updates the last access time.
     /// This does not set the dirty bit.
     pub fn read(&mut self, current_access_time: u64) {
+        trace!(
+            "Read from block with tag={:x} in set #{}",
+            self.get_tag(),
+            self.get_index()
+        );
         self.last_access = current_access_time;
     }
 }
@@ -173,10 +205,11 @@ pub struct Set {
 impl Set {
     /// Create a new set.
     pub fn new(block_size: u64, associativity: u64, evict_policy: EvictionPolicy) -> Self {
+        trace!("Creating set with block-size={block_size}, associativity={associativity}, policy={evict_policy:?}");
         Self {
             blocks: vec![None; associativity as usize],
             block_size,
-            evict_policy
+            evict_policy,
         }
     }
 
@@ -193,11 +226,13 @@ impl Set {
     /// Evict the block with the given tag.
     /// Return the block that was evicted.
     fn evict_tag(&mut self, tag: u64) -> Option<Block> {
+        trace!("Evicting block with tag={tag:x}");
         // Find the block with the matching tag and index
         for block_slot in self.blocks.iter_mut() {
             let result = *block_slot;
             if let Some(present_block) = result {
                 if present_block.tag == tag {
+                    trace!("Evicting block {block_slot:?}");
                     *block_slot = None;
                     return result;
                 }
@@ -211,6 +246,7 @@ impl Set {
     /// This will return the block that was evicted, if any.
     fn allocate_block(&mut self, block: BlockAddress, current_access_time: u64) -> Option<Block> {
         let result = if self.is_full() {
+            trace!("Set is full, evicting a block.");
             // Evict a block
             self.evict()
         } else {
@@ -221,7 +257,12 @@ impl Set {
         for block_slot in self.blocks.iter_mut() {
             if block_slot.is_none() {
                 // Allocate the block
-                *block_slot = Some(Block::new(block.tag, block.index, self.block_size, current_access_time));
+                *block_slot = Some(Block::new(
+                    block.tag,
+                    block.index,
+                    self.block_size,
+                    current_access_time,
+                ));
                 break;
             }
         }
@@ -229,10 +270,13 @@ impl Set {
         result
     }
 
+    /// Evict a block from the set, and return the evicted block.
     pub fn evict(&mut self) -> Option<Block> {
+        // Get the policy
         let policy = self.evict_policy;
+        // Evict a block from the set using it
         if let Some(result) = policy.evict(self) {
-            eprintln!("Evicting the following block: {:#?}", result);
+            trace!("Evicting the block from set: {:?}", result);
             return Some(result);
         }
         None
@@ -240,13 +284,16 @@ impl Set {
 
     /// Return the tags of the blocks in the set.
     pub fn get_tags(&self) -> Vec<u64> {
-        self.blocks.iter().filter_map(|block| {
-            if let Some(block) = block {
-                Some(block.tag)
-            } else {
-                None
-            }
-        }).collect()
+        self.blocks
+            .iter()
+            .filter_map(|block| {
+                if let Some(block) = block {
+                    Some(block.tag)
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     /// Return the block with the given tag.
@@ -290,6 +337,7 @@ impl Set {
         None
     }
 
+    /// Get the block associated with the block address.
     fn get_block_with_addr(&self, block_address: BlockAddress) -> Option<&Block> {
         let tag = block_address.tag;
         for block in self.blocks.iter() {
@@ -301,7 +349,7 @@ impl Set {
         }
         None
     }
-    
+
     /// Does this set contain the block at the given address?
     fn is_hit(&self, block_address: BlockAddress) -> bool {
         self.get_block_with_addr(block_address).is_some()
@@ -333,39 +381,63 @@ impl Set {
 
     /// Insert the block at the given address into the set.
     /// Return the old block that was replaced, if any.
-    pub fn write_and_allocate(&mut self, block_address: BlockAddress, current_access_time: u64) -> Option<Block> {
-        if !self.try_write(block_address, current_access_time) {
-            let result = self.allocate_block(block_address, current_access_time);
-            assert!(self.try_write(block_address, current_access_time));
-            result
-        } else {
-            None
+    pub fn write_and_allocate(
+        &mut self,
+        block_address: BlockAddress,
+        current_access_time: u64,
+    ) -> Option<Block> {
+        // Try writing to the block
+        if self.try_write(block_address, current_access_time) {
+            // If the operation succeeded, there was no block replaced so return None.
+            return None;
         }
+        // If the operation failed, allocate the block and then try again
+        let result = self.allocate_block(block_address, current_access_time);
+        // It *MUST* work after the block has been allocated.
+        // Otherwise it was not allocated properly
+        assert!(self.try_write(block_address, current_access_time));
+        result
     }
 
     /// Read the block at the given address.
     /// This will update the last access time of the block.
     /// It will allocate the block if it is not already in the set.
     /// Return the old block that was replaced, if any.
-    pub fn read_and_allocate(&mut self, block_address: BlockAddress, current_access_time: u64) -> Option<Block> {
-        if !self.try_read(block_address, current_access_time) {
-            let result = self.allocate_block(block_address, current_access_time);
-            assert!(self.try_read(block_address, current_access_time));
-            result
-        } else {
-            None
+    pub fn read_and_allocate(
+        &mut self,
+        block_address: BlockAddress,
+        current_access_time: u64,
+    ) -> Option<Block> {
+        // Try reading the block
+        if self.try_read(block_address, current_access_time) {
+            // If the operation succeeded, there was no block replaced so return None.
+            return None;
         }
+        // If the operation failed, allocate the block and try again
+        let result = self.allocate_block(block_address, current_access_time);
+        // It *MUST* work after the block has been allocated.
+        // Otherwise it was not allocated properly.
+        assert!(self.try_read(block_address, current_access_time));
+        result
     }
 
     /// Performs the write and allocate operation, and returns true if it was a write hit.
-    pub fn is_write_and_allocate_hit(&mut self, block_address: BlockAddress, current_access_time: u64) -> bool {
+    pub fn is_write_and_allocate_hit(
+        &mut self,
+        block_address: BlockAddress,
+        current_access_time: u64,
+    ) -> bool {
         let is_hit = self.is_hit(block_address);
         self.write_and_allocate(block_address, current_access_time);
         is_hit
     }
 
     /// Performs the read and allocate operation, and returns true if it was a read hit.
-    pub fn is_read_and_allocate_hit(&mut self, block_address: BlockAddress, current_access_time: u64) -> bool {
+    pub fn is_read_and_allocate_hit(
+        &mut self,
+        block_address: BlockAddress,
+        current_access_time: u64,
+    ) -> bool {
         let is_hit = self.is_hit(block_address);
         self.read_and_allocate(block_address, current_access_time);
         is_hit
@@ -398,7 +470,12 @@ pub struct Cache {
 
 impl Cache {
     /// Create a new cache.
-    pub fn new(sets: usize, block_size: u64, associativity: u64, evict_policy: EvictionPolicy) -> Self {
+    pub fn new(
+        sets: usize,
+        block_size: u64,
+        associativity: u64,
+        evict_policy: EvictionPolicy,
+    ) -> Self {
         Self {
             sets: vec![Set::new(block_size, associativity, evict_policy); sets],
             associativity,
@@ -407,21 +484,44 @@ impl Cache {
     }
 
     /// Create a new fully associative cache.
-    pub fn new_fully_associative(size_in_bytes: u64, block_size: u64, evict_policy: EvictionPolicy) -> Self {
+    pub fn new_fully_associative(
+        size_in_bytes: u64,
+        block_size: u64,
+        evict_policy: EvictionPolicy,
+    ) -> Self {
         let number_of_sets = size_in_bytes / block_size;
-        Self::new(number_of_sets as usize, block_size, number_of_sets, evict_policy)
+        Self::new(
+            number_of_sets as usize,
+            block_size,
+            number_of_sets,
+            evict_policy,
+        )
     }
 
     /// Create a new direct-mapped cache.
-    pub fn new_direct_mapped(size_in_bytes: u64, block_size: u64, evict_policy: EvictionPolicy) -> Self {
+    pub fn new_direct_mapped(
+        size_in_bytes: u64,
+        block_size: u64,
+        evict_policy: EvictionPolicy,
+    ) -> Self {
         let number_of_sets = size_in_bytes / block_size;
         Self::new(number_of_sets as usize, block_size, 1, evict_policy)
     }
 
     /// Create a new set-associative cache.
-    pub fn new_set_associative(associativity: u64, size_in_bytes: u64, block_size: u64, evict_policy: EvictionPolicy) -> Self {
+    pub fn new_set_associative(
+        associativity: u64,
+        size_in_bytes: u64,
+        block_size: u64,
+        evict_policy: EvictionPolicy,
+    ) -> Self {
         let number_of_sets = (size_in_bytes / block_size) / associativity;
-        Self::new(number_of_sets as usize, block_size, associativity, evict_policy)
+        Self::new(
+            number_of_sets as usize,
+            block_size,
+            associativity,
+            evict_policy,
+        )
     }
 
     /// Return the number of sets in the cache.
@@ -461,7 +561,11 @@ impl Cache {
     /// Write to the block at the given address.
     /// If the block isn't in the cache, then allocate a block.
     /// Return the evicted block, if any.
-    pub fn write_and_allocate(&mut self, address: BlockAddress, current_access_time: u64) -> Option<Block> {
+    pub fn write_and_allocate(
+        &mut self,
+        address: BlockAddress,
+        current_access_time: u64,
+    ) -> Option<Block> {
         let set = &mut self.sets[address.index as usize];
         set.write_and_allocate(address, current_access_time)
     }
@@ -469,21 +573,33 @@ impl Cache {
     /// Read the block at the given address.
     /// If the block isn't in the cache, then allocate a block.
     /// Return the evicted block, if any.
-    pub fn read_and_allocate(&mut self, address: BlockAddress, current_access_time: u64) -> Option<Block> {
+    pub fn read_and_allocate(
+        &mut self,
+        address: BlockAddress,
+        current_access_time: u64,
+    ) -> Option<Block> {
         let set = &mut self.sets[address.index as usize];
         set.read_and_allocate(address, current_access_time)
     }
 
     /// Performs the write and allocate operation, and returns true if it was a write hit.
     /// Return the evicted block, if any.
-    pub fn is_write_and_allocate_hit(&mut self, address: BlockAddress, current_access_time: u64) -> bool {
+    pub fn is_write_and_allocate_hit(
+        &mut self,
+        address: BlockAddress,
+        current_access_time: u64,
+    ) -> bool {
         let set = &mut self.sets[address.index as usize];
         set.is_write_and_allocate_hit(address, current_access_time)
     }
 
     /// Performs the read and allocate operation, and returns true if it was a read hit.
     /// Return the evicted block, if any.
-    pub fn is_read_and_allocate_hit(&mut self, address: BlockAddress, current_access_time: u64) -> bool {
+    pub fn is_read_and_allocate_hit(
+        &mut self,
+        address: BlockAddress,
+        current_access_time: u64,
+    ) -> bool {
         let set = &mut self.sets[address.index as usize];
         set.is_read_and_allocate_hit(address, current_access_time)
     }
