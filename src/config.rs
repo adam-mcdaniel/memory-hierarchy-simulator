@@ -70,6 +70,15 @@ impl SimulatorConfig {
         Self::from_buffer(&mut buffer)
     }
 
+    /// Get the size of a page in bytes.
+    pub fn get_page_size(&self) -> u64 {
+        self.page_table.get_page_size()
+    }
+
+    pub fn get_tlb_tag_bits(&self) -> u64 {
+        self.page_table.get_virtual_page_number_bits()
+    }
+
     pub fn get_tlb_index_bits(&self) -> u64 {
         self.tlb.get_index_bits()
     }
@@ -154,11 +163,31 @@ impl TLBConfig {
         }
     }
 
+    /// Get the eviction policy for the TLB cache.
+    pub fn get_eviction_policy(&self) -> EvictionPolicy {
+        EvictionPolicy::LRU
+    }
+
     /// Returns the number of bits used for the TLB index.
     /// The TLB index is the number of bits used to address a TLB entry.
     /// The TLB doesn't have sets because it is fully associative.
     pub fn get_index_bits(&self) -> u64 {
         self.number_of_sets.trailing_zeros() as u64
+    }
+
+    /// Get the number of sets in the TLB.
+    pub fn get_number_of_sets(&self) -> u64 {
+        self.number_of_sets
+    }
+
+    /// Get the number of page table entries in each set.
+    pub fn get_entries_in_set(&self) -> u64 {
+        self.set_size
+    }
+
+    /// Get the associativity of the TLB.
+    pub fn get_associativity(&self) -> u64 {
+        self.number_of_sets
     }
 
     /// Read the configuration from a file, buffer, or other reader.
@@ -200,6 +229,17 @@ impl PageTableConfig {
             number_of_physical_pages,
             page_size,
         }
+    }
+
+    /// Get the size of a page.
+    pub fn get_page_size(&self) -> u64 {
+        self.page_size
+    }
+
+    /// Returns the number of bits used to represent the virtual page number
+    /// in a virtual address.
+    pub fn get_virtual_page_number_bits(&self) -> u64 {
+        self.number_of_virtual_pages.trailing_zeros() as u64
     }
 
     /// Returns the number of bits used for the page table index.

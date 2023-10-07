@@ -108,13 +108,14 @@ impl BlockAddress {
             x = index,
             bits = index_bits as usize
         );
-        let space = " ".repeat((tag_bits + index_bits) as usize);
-        eprintln!(
-            "offset:  {x:08x} {space}{x:0bits$b}",
-            x = offset,
-            bits = offset_bits as usize
-        );
-
+        if offset_bits > 0 {
+            let space = " ".repeat((tag_bits + index_bits) as usize);
+            eprintln!(
+                "offset:  {x:08x} {space}{x:0bits$b}",
+                x = offset,
+                bits = offset_bits as usize
+            );
+        }
         Self {
             tag_bits,
             index_bits,
@@ -142,6 +143,13 @@ impl BlockAddress {
         let index_bits = config.get_page_table_index_bits();
         let offset_bits = config.get_page_table_offset_bits();
         Self::new(address, index_bits, offset_bits)
+    }
+
+    pub fn new_tlb_address(address: u64, config: &SimulatorConfig) -> Self {
+        let index_bits = config.get_tlb_index_bits();
+        let page_number =
+            (address & !(config.get_page_size() - 1)) >> config.get_page_table_offset_bits();
+        Self::new(page_number, index_bits, 0)
     }
 }
 
