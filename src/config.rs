@@ -1,9 +1,11 @@
 use std::{
-    io::{Read, BufReader},
     fmt::{Display, Formatter, Result as FmtResult},
+    io::{BufReader, Read},
 };
 
-use super::{get_header, get_decimal, get_bool};
+use crate::EvictionPolicy;
+
+use super::{get_bool, get_decimal, get_header};
 
 pub struct SimulatorConfig {
     /// Are virtual addresses enabled?
@@ -32,7 +34,10 @@ impl Default for SimulatorConfig {
 
 impl SimulatorConfig {
     /// Read the configuration from a file, buffer, or other reader.
-    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
+    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self
+    where
+        R: Read,
+    {
         // Read the TLB configuration from the file.
         let tlb = TLBConfig::from_buffer(buffer);
         // Read the page table configuration from the file.
@@ -108,9 +113,21 @@ impl SimulatorConfig {
 
 impl Display for SimulatorConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "{}\n{}\n{}\n{}", self.tlb, self.page_table, self.data_cache, self.l2_cache)?;
+        write!(
+            f,
+            "{}\n{}\n{}\n{}",
+            self.tlb, self.page_table, self.data_cache, self.l2_cache
+        )?;
 
-        writeln!(f, "The addresses read in are {} addresses.", if self.virtual_addresses_enabled { "virtual" } else { "physical" })?;
+        writeln!(
+            f,
+            "The addresses read in are {} addresses.",
+            if self.virtual_addresses_enabled {
+                "virtual"
+            } else {
+                "physical"
+            }
+        )?;
 
         if !self.tlb_enabled {
             writeln!(f, "TLB is disabled in this configuration.")?;
@@ -145,7 +162,10 @@ impl TLBConfig {
     }
 
     /// Read the configuration from a file, buffer, or other reader.
-    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
+    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self
+    where
+        R: Read,
+    {
         get_header(buffer, "Data TLB configuration");
         let number_of_sets = get_decimal(buffer, Some("Number of sets")).unwrap().1;
         let set_size = get_decimal(buffer, Some("Set size")).unwrap().1;
@@ -170,7 +190,11 @@ pub struct PageTableConfig {
 }
 
 impl PageTableConfig {
-    pub fn new(number_of_virtual_pages: u64, number_of_physical_pages: u64, page_size: u64) -> Self {
+    pub fn new(
+        number_of_virtual_pages: u64,
+        number_of_physical_pages: u64,
+        page_size: u64,
+    ) -> Self {
         Self {
             number_of_virtual_pages,
             number_of_physical_pages,
@@ -191,10 +215,17 @@ impl PageTableConfig {
     }
 
     /// Read the configuration from a file, buffer, or other reader.
-    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
+    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self
+    where
+        R: Read,
+    {
         get_header(buffer, "Page Table configuration");
-        let number_of_virtual_pages = get_decimal(buffer, Some("Number of virtual pages")).unwrap().1;
-        let number_of_physical_pages = get_decimal(buffer, Some("Number of physical pages")).unwrap().1;
+        let number_of_virtual_pages = get_decimal(buffer, Some("Number of virtual pages"))
+            .unwrap()
+            .1;
+        let number_of_physical_pages = get_decimal(buffer, Some("Number of physical pages"))
+            .unwrap()
+            .1;
         let page_size = get_decimal(buffer, Some("Page size")).unwrap().1;
         Self::new(number_of_virtual_pages, number_of_physical_pages, page_size)
     }
@@ -233,7 +264,7 @@ impl DataCacheConfig {
     pub fn get_index_bits(&self) -> u64 {
         self.number_of_sets.trailing_zeros() as u64
     }
-    
+
     /// Returns the number of bits used for the cache line offset.
     /// The cache line offset is the number of bits used to address a byte within a cache line.
     pub fn get_offset_bits(&self) -> u64 {
@@ -268,13 +299,39 @@ impl DataCacheConfig {
         !self.write_through
     }
 
+    /// Get the associativity of the data cache from the configuration.
+    pub fn get_associativity(&self) -> u64 {
+        // The associativity is the number of blocks in each set
+        self.set_size
+    }
+
+    /// Get the number of bytes in each block (the line size for the cache).
+    pub fn get_block_size(&self) -> u64 {
+        self.line_size
+    }
+
+    /// Get the eviction policy for the data cache.
+    pub fn get_eviction_policy(&self) -> EvictionPolicy {
+        EvictionPolicy::LRU
+    }
+
+    /// Get the number of sets in the data cache.
+    pub fn get_number_of_sets(&self) -> u64 {
+        self.number_of_sets
+    }
+
     /// Read the configuration from a file, buffer, or other reader.
-    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
+    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self
+    where
+        R: Read,
+    {
         get_header(buffer, "Data Cache configuration");
         let number_of_sets = get_decimal(buffer, Some("Number of sets")).unwrap().1;
         let set_size = get_decimal(buffer, Some("Set size")).unwrap().1;
         let line_size = get_decimal(buffer, Some("Line size")).unwrap().1;
-        let write_through = get_bool(buffer, Some("Write through/no write allocate")).unwrap().1;
+        let write_through = get_bool(buffer, Some("Write through/no write allocate"))
+            .unwrap()
+            .1;
         Self::new(number_of_sets, set_size, line_size, write_through)
     }
 }
@@ -283,16 +340,15 @@ impl Display for DataCacheConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         let is_write_through = self.is_write_through();
         let is_write_allocate = self.is_write_allocate();
-        
+
         let allocate_policy = if is_write_allocate { "" } else { "no " };
         let write_policy = if is_write_through { "through" } else { "back" };
-        
+
         writeln!(f, "D-cache contains {} sets.\nEach set contains {} entries.\nEach line is {} bytes.\nThe cache uses a {}write-allocate and write-{} policy.\nNumber of bits used for the index is {}.\nNumber of bits used for the offset is {}.", self.number_of_sets, self.set_size, self.line_size, allocate_policy, write_policy, self.get_index_bits(), self.get_offset_bits())
 
         // writeln!(f, "D-cache contains {} sets.\nEach set contains {} entries.\nEach line is {} bytes.\nThe cache uses a {}write-allocate and write-{} policy.\nNumber of bits used for the index is {}.\nNumber of bits used for the offset is {}.", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "no " } else { "" }, if self.write_through { "through" } else {"back"}, self.get_index_bits(), self.get_offset_bits())
     }
 }
-
 
 /// Configuration for the L2 cache.
 pub struct L2Cache {
@@ -329,12 +385,17 @@ impl L2Cache {
     }
 
     /// Read the configuration from a file, buffer, or other reader.
-    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self where R: Read {
+    fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self
+    where
+        R: Read,
+    {
         get_header(buffer, "L2 Cache configuration");
         let number_of_sets = get_decimal(buffer, Some("Number of sets")).unwrap().1;
         let set_size = get_decimal(buffer, Some("Set size")).unwrap().1;
         let line_size = get_decimal(buffer, Some("Line size")).unwrap().1;
-        let write_through = get_bool(buffer, Some("Write through/no write allocate")).unwrap().1;
+        let write_through = get_bool(buffer, Some("Write through/no write allocate"))
+            .unwrap()
+            .1;
         Self::new(number_of_sets, set_size, line_size, write_through)
     }
 }
