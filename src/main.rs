@@ -27,6 +27,7 @@ fn main() {
     );
     let mut dc = DataCache::new_from_config(&config);
     let mut tlb = TLBCache::new_from_config(&config);
+    let mut l2 = L2Cache::new_from_config(&config);
 
     let mut page_tables_hits = 0;
     let mut page_tables_misses = 0;
@@ -93,15 +94,31 @@ fn main() {
                 //     cache_misses += 1;
                 // }
                 if dc.write(address, current_access_time) {
-                    eprintln!("#{i} Cache Write Hit {}: {}", current_access_time, access);
+                    eprintln!("#{i} DC Write Hit {access}");
                 } else {
-                    eprintln!("#{i} Cache Write Miss {}: {}", current_access_time, access);
+                    eprintln!("#{i} DC Write Miss {access}");
+                    if l2.write(
+                        BlockAddress::new_l2_cache_address(physical_address, &config),
+                        current_access_time,
+                    ) {
+                        eprintln!("#{i} L2 Write Hit {access}");
+                    } else {
+                        eprintln!("#{i} L2 Write Miss {access}")
+                    }
                 }
             } else {
                 if dc.read(address, current_access_time) {
                     eprintln!("#{i} Cache Read Hit {}: {}", current_access_time, access);
                 } else {
                     eprintln!("#{i} Cache Read Miss {}: {}", current_access_time, access);
+                    if l2.read(
+                        BlockAddress::new_l2_cache_address(physical_address, &config),
+                        current_access_time,
+                    ) {
+                        eprintln!("#{i} L2 Read Hit {access}");
+                    } else {
+                        eprintln!("#{i} L2 Read Miss {access}")
+                    }
                 }
                 // cache.read_and_allocate(address, current_access_time);
                 // if cache.is_read_and_allocate_hit(address, current_access_time) {

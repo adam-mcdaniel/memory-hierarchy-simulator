@@ -1,0 +1,133 @@
+use super::*;
+use log::info;
+
+pub struct L2Cache {
+    cache: Cache,
+    is_write_allocate: bool,
+    total_read_misses: u64,
+    total_write_misses: u64,
+    total_reads: u64,
+    total_writes: u64,
+}
+
+impl L2Cache {
+    /// Create a new cache.
+    pub fn new(
+        sets: usize,
+        block_size: u64,
+        associativity: u64,
+        evict_policy: EvictionPolicy,
+        is_write_allocate: bool,
+    ) -> Self {
+        info!("Creating new L2Cache with {sets} sets, block-size={block_size}, associativity={associativity}, and policy={evict_policy:?}");
+        Self {
+            cache: Cache::new(sets, block_size, associativity, evict_policy),
+            is_write_allocate,
+            total_read_misses: 0,
+            total_write_misses: 0,
+            total_reads: 0,
+            total_writes: 0,
+        }
+    }
+
+    /// Create a new fully associative cache.
+    pub fn new_fully_associative(
+        size_in_bytes: u64,
+        block_size: u64,
+        evict_policy: EvictionPolicy,
+        is_write_allocate: bool,
+    ) -> Self {
+        let number_of_sets = size_in_bytes / block_size;
+        Self::new(
+            number_of_sets as usize,
+            block_size,
+            number_of_sets,
+            evict_policy,
+            is_write_allocate,
+        )
+    }
+
+    /// Create a new direct-mapped cache.
+    pub fn new_direct_mapped(
+        size_in_bytes: u64,
+        block_size: u64,
+        evict_policy: EvictionPolicy,
+        is_write_allocate: bool,
+    ) -> Self {
+        let number_of_sets = size_in_bytes / block_size;
+        Self::new(
+            number_of_sets as usize,
+            block_size,
+            1,
+            evict_policy,
+            is_write_allocate,
+        )
+    }
+
+    /// Create a new set-associative cache.
+    pub fn new_set_associative(
+        associativity: u64,
+        size_in_bytes: u64,
+        block_size: u64,
+        evict_policy: EvictionPolicy,
+        is_write_allocate: bool,
+    ) -> Self {
+        let number_of_sets = (size_in_bytes / block_size) / associativity;
+        Self::new(
+            number_of_sets as usize,
+            block_size,
+            associativity,
+            evict_policy,
+            is_write_allocate,
+        )
+    }
+
+    /// Create a new L2 cache from the configuration file.
+    pub fn new_from_config(config: &SimulatorConfig) -> Self {
+        let number_of_sets = config.l2_cache.get_number_of_sets();
+        let associativity = config.l2_cache.get_associativity();
+        let block_size = config.l2_cache.get_block_size();
+        let evict_policy = config.l2_cache.get_eviction_policy();
+        let is_write_allocate = config.l2_cache.is_write_allocate();
+        Self::new(
+            number_of_sets as usize,
+            block_size,
+            associativity,
+            evict_policy,
+            is_write_allocate,
+        )
+    }
+
+    /// Write to a block in the L2 cache.
+    /// This will return whether or not the write was a hit.
+    pub fn write(&mut self, address: BlockAddress, current_access_time: u64) -> bool {
+        self.total_writes += 1;
+        let result = if self.is_write_allocate {
+            self.cache
+                .is_write_and_allocate_hit(address, current_access_time)
+        } else {
+            self.cache.try_write(address, current_access_time)
+        };
+
+        // If the result was not a hit, increment the miss count
+        if !result {
+            self.total_write_misses += 1;
+        }
+
+        result
+    }
+
+    /// Read a block in the L2 cache.
+    /// This will return whether or not the read was a hit.
+    pub fn read(&mut self, address: BlockAddress, current_access_time: u64) -> bool {
+        self.total_reads += 1;
+        let result = self
+            .cache
+            .is_read_and_allocate_hit(address, current_access_time);
+        if !result {
+            self.total_read_misses += 1
+        }
+
+        result
+    }
+}

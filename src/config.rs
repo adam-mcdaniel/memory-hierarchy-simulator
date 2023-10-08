@@ -22,7 +22,7 @@ pub struct SimulatorConfig {
     /// The configuration settings for the data cache.
     pub data_cache: DataCacheConfig,
     /// The configuration settings for the L2 cache.
-    pub l2_cache: L2Cache,
+    pub l2_cache: L2CacheConfig,
 }
 
 impl Default for SimulatorConfig {
@@ -45,7 +45,7 @@ impl SimulatorConfig {
         // Read the data cache configuration from the file.
         let data_cache = DataCacheConfig::from_buffer(buffer);
         // Read the L2 cache configuration from the file.
-        let l2_cache = L2Cache::from_buffer(buffer);
+        let l2_cache = L2CacheConfig::from_buffer(buffer);
 
         // Read the last three lines of the file, which enable certain features of the simulator.
         let virtual_addresses_enabled = get_bool(buffer, Some("Virtual addresses")).unwrap().1;
@@ -391,7 +391,7 @@ impl Display for DataCacheConfig {
 }
 
 /// Configuration for the L2 cache.
-pub struct L2Cache {
+pub struct L2CacheConfig {
     /// Number of sets in the L2 cache.
     pub number_of_sets: u64,
     /// Number of entries in each set.
@@ -402,7 +402,7 @@ pub struct L2Cache {
     pub write_through: bool,
 }
 
-impl L2Cache {
+impl L2CacheConfig {
     pub fn new(number_of_sets: u64, set_size: u64, line_size: u64, write_through: bool) -> Self {
         Self {
             number_of_sets,
@@ -424,6 +424,55 @@ impl L2Cache {
         self.line_size.trailing_zeros() as u64
     }
 
+    /// Is the cache write-through?
+    /// Write through means that the data is written to both the cache and the main memory.
+    /// A write-through cache uses a no-write-allocate policy.
+    pub fn is_write_through(&self) -> bool {
+        self.write_through
+    }
+
+    /// Is the cache no-write-allocate?
+    /// No-write-allocate means that the cache line is not loaded into the cache when a write miss occurs.
+    /// A write-through cache uses a no-write-allocate policy.
+    pub fn is_no_write_allocate(&self) -> bool {
+        self.write_through
+    }
+
+    /// Is the cache write-back?
+    /// Write back means that the data is written to the cache and the main memory is updated when the cache line is evicted.
+    /// A write-back cache uses a write-allocate policy.
+    pub fn is_write_back(&self) -> bool {
+        !self.write_through
+    }
+
+    /// Is the cache write-allocate?
+    /// Write allocate means that the cache line is loaded into the cache when a write miss occurs.
+    /// A write-back cache uses a write-allocate policy.
+    pub fn is_write_allocate(&self) -> bool {
+        !self.write_through
+    }
+
+    /// Get the associativity of the data cache from the configuration.
+    pub fn get_associativity(&self) -> u64 {
+        // The associativity is the number of blocks in each set
+        self.set_size
+    }
+
+    /// Get the number of bytes in each block (the line size for the cache).
+    pub fn get_block_size(&self) -> u64 {
+        self.line_size
+    }
+
+    /// Get the eviction policy for the data cache.
+    pub fn get_eviction_policy(&self) -> EvictionPolicy {
+        EvictionPolicy::LRU
+    }
+
+    /// Get the number of sets in the data cache.
+    pub fn get_number_of_sets(&self) -> u64 {
+        self.number_of_sets
+    }
+
     /// Read the configuration from a file, buffer, or other reader.
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Self
     where
@@ -440,7 +489,7 @@ impl L2Cache {
     }
 }
 
-impl Display for L2Cache {
+impl Display for L2CacheConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         writeln!(f, "L2-cache contains {} sets.\nEach set contains {} entries.\nEach line is {} bytes.\nThe cache uses a {}write-allocate and write-{} policy.\nNumber of bits used for the index is {}.\nNumber of bits used for the offset is {}.\n", self.number_of_sets, self.set_size, self.line_size, if self.write_through { "no " } else { "" }, if self.write_through { "through" } else {"back"}, self.get_index_bits(), self.get_offset_bits())
     }
