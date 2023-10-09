@@ -150,7 +150,7 @@ impl L2Cache {
     /// the page, and then invalidates them in the cache.
     /// This returns the number of invalidate pages.
     pub fn invalidate_page(&mut self, physical_address: u64, config: &SimulatorConfig) -> usize {
-        let block_size = config.data_cache.get_block_size();
+        let block_size = config.l2_cache.get_block_size();
         let page_size = config.get_page_size();
         let number_of_blocks = (page_size / block_size) as usize;
         let mut invalidated_block_count = 0;
