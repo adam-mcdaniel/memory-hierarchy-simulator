@@ -33,15 +33,19 @@ fn main() {
     let mut page_tables_misses = 0;
     let mut cache_hits = 0;
     let mut cache_misses = 0;
-
-    let mut sim = Simulator::from(config);
-
     eprintln!(
         r#"
-Virtual  Virt.  Page TLB    TLB TLB  PT   Phys        DC  DC          L2  L2
+{} Virt.  Page TLB    TLB TLB  PT   Phys        DC  DC          L2  L2
 Address  Page # Off  Tag    Ind Res. Res. Pg # DC Tag Ind Res. L2 Tag Ind Res.
--------- ------ ---- ------ --- ---- ---- ---- ------ --- ---- ------ --- ----"#
+-------- ------ ---- ------ --- ---- ---- ---- ------ --- ---- ------ --- ----"#,
+        if config.is_virtual_addresses_enabled() {
+            "Virtual "
+        } else {
+            "Physical"
+        }
     );
+
+    let mut sim = Simulator::from(config);
 
     for (i, access) in trace.iter().enumerate() {
         eprintln!("{}", sim.simulate(*access));

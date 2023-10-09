@@ -90,7 +90,7 @@ impl Display for AccessOutput {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         match self.get_virtual_address() {
             Some(addr) => write!(f, "{addr:08x}"),
-            None => write!(f, "{}", " ".repeat(8)),
+            None => write!(f, "{:08x}", self.physical_address),
         }?;
         write!(f, " ")?;
         match self.virtual_page_number {
