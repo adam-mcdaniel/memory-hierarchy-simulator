@@ -12,7 +12,7 @@ pub struct DataCache {
 
 impl DataCache {
     /// Create a new cache.
-    pub fn new(
+    fn new(
         sets: usize,
         block_size: u64,
         associativity: u64,
@@ -153,6 +153,7 @@ impl DataCache {
         let block_size = config.data_cache.get_block_size();
         let page_size = config.get_page_size();
         let number_of_blocks = (page_size / block_size) as usize;
+        assert!(number_of_blocks as u64 * block_size == page_size);
         let mut invalidated_block_count = 0;
         for block in 0..number_of_blocks {
             let block_address = BlockAddress::new_data_cache_address(

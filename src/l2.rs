@@ -12,7 +12,7 @@ pub struct L2Cache {
 
 impl L2Cache {
     /// Create a new cache.
-    pub fn new(
+    fn new(
         sets: usize,
         block_size: u64,
         associativity: u64,
@@ -88,7 +88,7 @@ impl L2Cache {
         let associativity = config.l2_cache.get_associativity();
         let block_size = config.l2_cache.get_block_size();
         let evict_policy = config.l2_cache.get_eviction_policy();
-        let is_write_allocate = config.l2_cache.is_write_allocate();
+        let is_write_allocate = config.l2_cache.is_write_allocate() || config.data_cache.is_write_allocate();
         Self::new(
             number_of_sets as usize,
             block_size,
@@ -153,6 +153,7 @@ impl L2Cache {
         let block_size = config.l2_cache.get_block_size();
         let page_size = config.get_page_size();
         let number_of_blocks = (page_size / block_size) as usize;
+        assert!(number_of_blocks as u64 * block_size == page_size);
         let mut invalidated_block_count = 0;
         for block in 0..number_of_blocks {
             let block_address = BlockAddress::new_l2_cache_address(
@@ -162,9 +163,10 @@ impl L2Cache {
 
             if let Some(block) = self.cache.invalidate(block_address) {
                 invalidated_block_count += 1;
-                trace!("Invalidated DC block {block:?}");
+                trace!("Invalidated L2 block {block:?}");
             }
         }
+
         invalidated_block_count
     }
 }

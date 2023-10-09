@@ -19,7 +19,7 @@ pub struct PageTable {
 }
 
 impl PageTable {
-    pub fn new(virtual_pages: u64, physical_pages: u64, page_size: u64) -> Self {
+    fn new(virtual_pages: u64, physical_pages: u64, page_size: u64) -> Self {
         info!("Creating new page table with {virtual_pages} virtual pages, {physical_pages} physical pages, and a page size of {page_size}");
         let entries = vec![None; virtual_pages as usize];
         Self {
