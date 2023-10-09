@@ -19,12 +19,12 @@ fn main() {
     eprintln!("Done reading trace");
 
     let mut page_table = PageTable::new_from_config(&config);
-    eprintln!("\nPage table:\n{:#?}", page_table);
-    eprintln!(
-        "Index bits: {}, offset bits: {}",
-        page_table.get_index_bits(),
-        page_table.get_offset_bits()
-    );
+    // eprintln!("\nPage table:\n{:#?}", page_table);
+    // eprintln!(
+    //     "Index bits: {}, offset bits: {}",
+    //     page_table.get_index_bits(),
+    //     page_table.get_offset_bits()
+    // );
     let mut dc = DataCache::new_from_config(&config);
     let mut tlb = TLBCache::new_from_config(&config);
     let mut l2 = L2Cache::new_from_config(&config);
@@ -34,7 +34,20 @@ fn main() {
     let mut cache_hits = 0;
     let mut cache_misses = 0;
 
+    let mut sim = Simulator::from(config);
+
+    eprintln!(
+        r#"
+Virtual  Virt.  Page TLB    TLB TLB  PT   Phys        DC  DC          L2  L2
+Address  Page # Off  Tag    Ind Res. Res. Pg # DC Tag Ind Res. L2 Tag Ind Res.
+-------- ------ ---- ------ --- ---- ---- ---- ------ --- ---- ------ --- ----"#
+    );
+
     for (i, access) in trace.iter().enumerate() {
+        eprintln!("{}", sim.simulate(*access));
+        continue;
+
+        eprintln!("Access: {access:#?}");
         let current_access_time = i as u64;
         let virtual_address = access.address();
 

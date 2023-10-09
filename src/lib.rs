@@ -2,7 +2,9 @@ pub mod cache;
 pub mod config;
 pub mod dc;
 pub mod l2;
+pub mod output;
 pub mod pagetable;
+pub mod simulator;
 pub mod tlb;
 pub mod trace;
 
@@ -10,7 +12,9 @@ pub use cache::*;
 pub use config::*;
 pub use dc::*;
 pub use l2::*;
+pub use output::*;
 pub use pagetable::*;
+pub use simulator::*;
 pub use tlb::*;
 pub use trace::*;
 

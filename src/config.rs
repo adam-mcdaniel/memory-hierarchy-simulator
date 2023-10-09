@@ -3,9 +3,8 @@ use std::{
     io::{BufReader, Read},
 };
 
-use crate::EvictionPolicy;
-
 use super::{get_bool, get_decimal, get_header};
+use crate::EvictionPolicy;
 
 pub struct SimulatorConfig {
     /// Are virtual addresses enabled?

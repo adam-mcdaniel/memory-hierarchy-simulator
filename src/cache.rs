@@ -223,24 +223,6 @@ impl Set {
         self.blocks.len()
     }
 
-    /// Evict the block with the given tag.
-    /// Return the block that was evicted.
-    fn evict_tag(&mut self, tag: u64) -> Option<Block> {
-        trace!("Evicting block with tag={tag:x}");
-        // Find the block with the matching tag and index
-        for block_slot in self.blocks.iter_mut() {
-            let result = *block_slot;
-            if let Some(present_block) = result {
-                if present_block.tag == tag {
-                    trace!("Evicting block {block_slot:?}");
-                    *block_slot = None;
-                    return result;
-                }
-            }
-        }
-        None
-    }
-
     /// Insert the block into the set.
     /// If the set is full, then evict a block.
     /// This will return the block that was evicted, if any.
@@ -280,6 +262,30 @@ impl Set {
             return Some(result);
         }
         None
+    }
+
+    /// Evict the block with the given tag.
+    /// Return the block that was evicted.
+    fn evict_tag(&mut self, tag: u64) -> Option<Block> {
+        trace!("Evicting block with tag={tag:x}");
+        // Find the block with the matching tag and index
+        for block_slot in self.blocks.iter_mut() {
+            let result = *block_slot;
+            if let Some(present_block) = result {
+                if present_block.tag == tag {
+                    trace!("Evicting block {block_slot:?}");
+                    *block_slot = None;
+                    return result;
+                }
+            }
+        }
+        None
+    }
+
+    /// Evict the block with the given address.
+    /// Return the block that was evicted.
+    fn evict_addr(&mut self, block_address: BlockAddress) -> Option<Block> {
+        self.evict_tag(block_address.tag)
     }
 
     /// Return the tags of the blocks in the set.
@@ -625,5 +631,10 @@ impl Cache {
     /// This is the number of blocks that can be stored in the cache.
     pub fn number_of_blocks(&self) -> u64 {
         self.sets.len() as u64 * self.associativity
+    }
+
+    /// Evict the block associated with the given address.
+    pub fn invalidate(&mut self, address: BlockAddress) -> Option<Block> {
+        self.sets[address.index as usize].evict_addr(address)
     }
 }

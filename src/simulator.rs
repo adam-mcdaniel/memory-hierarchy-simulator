@@ -1,0 +1,206 @@
+use super::*;
+use log::{debug, error, info, trace, warn};
+
+pub struct Simulator {
+    l2: Option<L2Cache>,
+    dc: DataCache,
+    tlb: Option<TLBCache>,
+    page_table: Option<PageTable>,
+    config: SimulatorConfig,
+    time: u64,
+}
+
+impl From<SimulatorConfig> for Simulator {
+    fn from(config: SimulatorConfig) -> Self {
+        Self {
+            l2: config
+                .is_l2_cache_enabled()
+                .then_some(L2Cache::new_from_config(&config)),
+            dc: DataCache::new_from_config(&config),
+            tlb: config
+                .is_tlb_enabled()
+                .then_some(TLBCache::new_from_config(&config)),
+            page_table: config
+                .is_virtual_addresses_enabled()
+                .then_some(PageTable::new_from_config(&config)),
+            config,
+            time: 0,
+        }
+    }
+}
+
+impl Simulator {
+    fn health_check(&self) -> Result<(), ()> {
+        if self.config.is_virtual_addresses_enabled() != self.get_page_table().is_some() {
+            return Err(());
+        }
+
+        if self.config.tlb_enabled != self.get_tlb().is_some() {
+            return Err(());
+        }
+
+        if self.config.is_l2_cache_enabled() != self.get_l2().is_some() {
+            return Err(());
+        }
+
+        Ok(())
+    }
+
+    pub fn get_l2(&self) -> Option<&L2Cache> {
+        // assert!(self.health_check().is_ok());
+        self.l2.as_ref()
+    }
+
+    pub fn get_dc(&self) -> &DataCache {
+        // assert!(self.health_check().is_ok());
+        &self.dc
+    }
+
+    pub fn get_tlb(&self) -> Option<&TLBCache> {
+        // assert!(self.health_check().is_ok());
+        self.tlb.as_ref()
+    }
+
+    pub fn get_page_table(&self) -> Option<&PageTable> {
+        // assert!(self.health_check().is_ok());
+        self.page_table.as_ref()
+    }
+
+    pub fn get_config(&self) -> &SimulatorConfig {
+        // assert!(self.health_check().is_ok());
+        &self.config
+    }
+
+    pub fn get_l2_mut(&mut self) -> Option<&mut L2Cache> {
+        // assert!(self.health_check().is_ok());
+        self.l2.as_mut()
+    }
+
+    pub fn get_dc_mut(&mut self) -> &mut DataCache {
+        // assert!(self.health_check().is_ok());
+        &mut self.dc
+    }
+
+    pub fn get_tlb_mut(&mut self) -> Option<&mut TLBCache> {
+        // assert!(self.health_check().is_ok());
+        self.tlb.as_mut()
+    }
+
+    pub fn get_page_table_mut(&mut self) -> Option<&mut PageTable> {
+        // assert!(self.health_check().is_ok());
+        self.page_table.as_mut()
+    }
+
+    pub fn get_time(&self) -> u64 {
+        self.time
+    }
+
+    fn age(&mut self) {
+        self.time += 1;
+    }
+
+    pub fn simulate(&mut self, access: Operation) -> AccessOutput {
+        assert!(self.health_check().is_ok());
+        let virtual_address = access.address();
+        let physical_address;
+        let tlb_address = BlockAddress::new_tlb_address(virtual_address, &self.config);
+
+        let time = self.get_time();
+        let is_tlb_hit;
+        let tlb_address;
+        let is_page_table_hit;
+        match (&mut self.tlb, &mut self.page_table) {
+            (Some(tlb), Some(page_table)) => {
+                let addr = BlockAddress::new_tlb_address(virtual_address, &self.config);
+                tlb_address = Some(addr);
+                info!("About to translate TLB address...");
+                is_tlb_hit = tlb.translate(addr, time);
+                info!("About to translate page table address...");
+                (physical_address, is_page_table_hit) =
+                    page_table.translate(virtual_address, time).unwrap();
+            }
+            (None, Some(page_table)) => {
+                is_tlb_hit = false;
+                tlb_address = None;
+                info!("About to translate page table address...");
+                (physical_address, is_page_table_hit) =
+                    page_table.translate(virtual_address, time).unwrap();
+            }
+            _ => {
+                physical_address = virtual_address;
+                tlb_address = None;
+                is_tlb_hit = false;
+                is_page_table_hit = false;
+            }
+        }
+        let is_page_fault =
+            self.config.is_virtual_addresses_enabled() && !is_tlb_hit && !is_page_table_hit;
+
+        if is_page_fault {
+            let count = self.dc.invalidate_page(physical_address, &self.config);
+            debug!("Evicted {count} pages from the DC");
+
+            if let Some(l2) = &mut self.l2 {
+                let count = l2.invalidate_page(physical_address, &self.config);
+                debug!("Evicted {count} pages from the L2");
+            }
+        }
+
+        let dc_address = BlockAddress::new_data_cache_address(physical_address, &self.config);
+        let dc_hit = self.get_dc_mut().access(access.is_read(), dc_address, time);
+
+        let l2_address;
+        let l2_hit;
+        let l2_tag;
+        let l2_index;
+        match &mut self.l2 {
+            Some(l2) => {
+                let addr = BlockAddress::new_l2_cache_address(physical_address, &self.config);
+                l2_address = Some(addr);
+                l2_hit = Some(l2.access(access.is_read(), addr, time));
+                l2_tag = addr.tag;
+                l2_index = addr.index;
+            }
+            None => {
+                l2_address = None;
+                l2_tag = 0;
+                l2_index = 0;
+                l2_hit = None;
+            }
+        }
+
+        let to_page_number = |addr| {
+            (addr & !(self.config.get_page_size() - 1))
+                >> (self.config.get_page_size().trailing_zeros())
+        };
+
+        let virtual_address = self
+            .config
+            .is_virtual_addresses_enabled()
+            .then_some(virtual_address);
+        let virtual_page_number = virtual_address.map(to_page_number);
+        let physical_page_number = to_page_number(physical_address);
+
+        let page_offset = physical_address & (self.config.get_page_size() - 1);
+        self.age();
+
+        AccessOutput {
+            access,
+            virtual_address,
+            physical_address,
+            virtual_page_number,
+            physical_page_number,
+            page_offset,
+            tlb_address,
+            tlb_hit: self.config.is_tlb_enabled().then_some(is_tlb_hit),
+            page_table_hit: self
+                .config
+                .is_virtual_addresses_enabled()
+                .then_some(is_page_table_hit),
+            dc_address,
+            dc_hit,
+            l2_address,
+            l2_hit,
+        }
+    }
+}

@@ -1,5 +1,5 @@
 use super::*;
-use log::info;
+use log::{debug, error, info, trace, warn};
 
 pub struct L2Cache {
     cache: Cache,
@@ -129,5 +129,42 @@ impl L2Cache {
         }
 
         result
+    }
+
+    /// Perform an access operation.
+    /// This returns whether or not the operation was a hit.
+    pub fn access(
+        &mut self,
+        is_read: bool,
+        address: BlockAddress,
+        current_access_time: u64,
+    ) -> bool {
+        if is_read {
+            self.read(address, current_access_time)
+        } else {
+            self.write(address, current_access_time)
+        }
+    }
+
+    /// Invalidate a physical page from the cache. This gets all the blocks loaded from
+    /// the page, and then invalidates them in the cache.
+    /// This returns the number of invalidate pages.
+    pub fn invalidate_page(&mut self, physical_address: u64, config: &SimulatorConfig) -> usize {
+        let block_size = config.data_cache.get_block_size();
+        let page_size = config.get_page_size();
+        let number_of_blocks = (page_size / block_size) as usize;
+        let mut invalidated_block_count = 0;
+        for block in 0..number_of_blocks {
+            let block_address = BlockAddress::new_l2_cache_address(
+                physical_address + block as u64 * block_size,
+                config,
+            );
+
+            if let Some(block) = self.cache.invalidate(block_address) {
+                invalidated_block_count += 1;
+                trace!("Invalidated DC block {block:?}");
+            }
+        }
+        invalidated_block_count
     }
 }
