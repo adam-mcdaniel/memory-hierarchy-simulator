@@ -8,11 +8,13 @@ pub struct Simulator {
     page_table: Option<PageTable>,
     config: SimulatorConfig,
     time: u64,
+    output: SimulatorOutput,
 }
 
 impl From<SimulatorConfig> for Simulator {
     fn from(config: SimulatorConfig) -> Self {
         Self {
+            output: SimulatorOutput::empty(config.clone()),
             l2: config
                 .is_l2_cache_enabled()
                 .then_some(L2Cache::new_from_config(&config)),
@@ -99,7 +101,15 @@ impl Simulator {
         self.time += 1;
     }
 
-    pub fn simulate(&mut self, access: Operation) -> AccessOutput {
+    pub fn simulate(&mut self, trace: Trace) -> SimulatorOutput {
+        self.output = SimulatorOutput::empty(self.config.clone());
+        for access in trace {
+            self.simulate_access(access);
+        }
+        self.output.clone()
+    }
+
+    pub fn simulate_access(&mut self, access: Operation) -> AccessOutput {
         assert!(self.health_check().is_ok());
         let virtual_address = access.address();
         let physical_address;
@@ -133,6 +143,12 @@ impl Simulator {
                 is_page_table_hit = false;
             }
         }
+        if self.config.is_tlb_enabled() {
+            self.output.add_tlb_access(is_tlb_hit);
+        }
+        if !is_tlb_hit && self.config.is_virtual_addresses_enabled() {
+            self.output.add_page_table_access(is_page_table_hit);
+        }
         let is_page_fault =
             self.config.is_virtual_addresses_enabled() && !is_tlb_hit && !is_page_table_hit;
 
@@ -148,6 +164,7 @@ impl Simulator {
 
         let dc_address = BlockAddress::new_data_cache_address(physical_address, &self.config);
         let dc_hit = self.get_dc_mut().access(access.is_read(), dc_address, time);
+        self.output.add_dc_access(dc_hit);
 
         let l2_address;
         let l2_hit;
@@ -157,7 +174,13 @@ impl Simulator {
             Some(l2) => {
                 let addr = BlockAddress::new_l2_cache_address(physical_address, &self.config);
                 l2_address = Some(addr);
-                l2_hit = Some(l2.access(access.is_read(), addr, time));
+                if !dc_hit {
+                    let result = l2.access(access.is_read(), addr, time);
+                    self.output.add_l2_access(result);
+                    l2_hit = Some(result);
+                } else {
+                    l2_hit = None;
+                }
                 l2_tag = addr.tag;
                 l2_index = addr.index;
             }
@@ -184,7 +207,7 @@ impl Simulator {
         let page_offset = physical_address & (self.config.get_page_size() - 1);
         self.age();
 
-        AccessOutput {
+        let result = AccessOutput {
             access,
             virtual_address,
             physical_address,
@@ -201,6 +224,10 @@ impl Simulator {
             dc_hit,
             l2_address,
             l2_hit,
-        }
+        };
+
+        self.output.add_access(result);
+
+        result
     }
 }

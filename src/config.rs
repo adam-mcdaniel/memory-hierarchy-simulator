@@ -6,6 +6,7 @@ use std::{
 use super::{get_bool, get_decimal, get_header};
 use crate::EvictionPolicy;
 
+#[derive(Clone, Debug)]
 pub struct SimulatorConfig {
     /// Are virtual addresses enabled?
     pub virtual_addresses_enabled: bool,
@@ -150,6 +151,7 @@ impl Display for SimulatorConfig {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct TLBConfig {
     pub number_of_sets: u64,
     pub set_size: u64,
@@ -209,6 +211,7 @@ impl Display for TLBConfig {
 }
 
 /// Configuration for the page table.
+#[derive(Clone, Debug)]
 pub struct PageTableConfig {
     /// Number of virtual pages in the page table.
     pub number_of_virtual_pages: u64,
@@ -278,6 +281,7 @@ impl Display for PageTableConfig {
 }
 
 /// Configuration for the data cache.
+#[derive(Clone, Debug)]
 pub struct DataCacheConfig {
     /// Number of sets in the cache.
     pub number_of_sets: u64,
@@ -391,6 +395,7 @@ impl Display for DataCacheConfig {
 }
 
 /// Configuration for the L2 cache.
+#[derive(Clone, Debug)]
 pub struct L2CacheConfig {
     /// Number of sets in the L2 cache.
     pub number_of_sets: u64,
