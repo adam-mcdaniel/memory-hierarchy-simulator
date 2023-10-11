@@ -2,6 +2,37 @@ use super::*;
 use core::fmt::{Display, Formatter, Result as FmtResult};
 use log::{debug, error, info, trace, warn};
 
+pub struct SimulatorOutput {
+    accesses: Vec<AccessOutput>,
+    
+    pub tlb_hits: u64,
+    pub tlb_misses: u64,
+    pub tlb_hit_ratio: f64,
+
+    pub pt_hits: u64,
+    pub pt_faults: u64,
+    pub pt_hit_ratio: f64,
+
+    pub dc_hits: u64,
+    pub dc_misses: u64,
+    pub dc_hit_ratio: f64,
+    
+    pub l2_hits: u64,
+    pub l2_misses: u64,
+    pub l2_hit_ratio: f64,
+
+    pub total_reads: u64,
+    pub total_writes: u64,
+    pub ratio_of_reads: f64,
+
+    pub main_memory_refs: u64,
+    /// The number of TLB misses
+    pub page_table_refs: u64,
+    /// This is equal to the number of 
+    pub disk_refs: u64,
+}
+
+
 pub struct AccessOutput {
     pub access: Operation,
 
