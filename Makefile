@@ -6,7 +6,7 @@ diff:
 	RUST_LOG=info cargo run --release -- trace.dat > mine.txt
 	cat mine.txt | head -n10000 > mine-short.txt
 	cat solution.txt | head -n10000 > solution-short.txt
-	# code --diff mine-short.txt solution-short.txt
-	code --diff mine.txt solution.txt
+	code --diff mine-short.txt solution-short.txt
+	# code --diff mine.txt solution.txt
 	# sleep 2
 	# rm mine.txt solution.txt
