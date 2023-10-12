@@ -338,18 +338,16 @@ impl Display for AccessOutput {
             return Ok(());
         }
         match self.get_l2_tag() {
-            Some(tag) => write!(f, "{tag:>6x}"),
-            _ => write!(f, "{}", " ".repeat(6)),
+            Some(tag) => write!(f, "{tag:>6x} "),
+            _ => Ok(()),
         }?;
-        write!(f, " ")?;
         match self.get_l2_index() {
-            Some(idx) => write!(f, "{idx:>3x}"),
-            _ => write!(f, "{}", " ".repeat(3)),
+            Some(idx) => write!(f, "{idx:>3x} "),
+            _ => Ok(()),
         }?;
-        write!(f, " ")?;
         match self.l2_hit {
             Some(hit) => write!(f, "{}", if hit { "hit " } else { "miss" }),
-            _ => write!(f, "{}", " ".repeat(4)),
+            _ => Ok(()),
         }
     }
 }

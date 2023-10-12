@@ -155,8 +155,11 @@ impl Simulator {
         if is_page_fault {
             // let count = self.dc.invalidate_page(physical_address & !(self.config.get_page_size() - 1), &self.config);
             let blocks = self.dc.invalidate_page(physical_address, &self.config);
+
             let count = blocks.len();
-            debug!("Evicted {count} pages from the DC");
+            if count > 0 {
+                eprintln!("Evicted {count} pages from the DC");
+            }
             // self.output.add_main_memory_accesses(count as u64);
 
             if self.config.data_cache.is_write_back() && !self.config.is_l2_cache_enabled() {
@@ -168,7 +171,9 @@ impl Simulator {
                 if self.config.l2_cache.is_write_back() {
                     self.output.add_main_memory_accesses(count as u64);
                 }
-                debug!("Evicted {count} pages from the L2");
+                if count > 0 {
+                    eprintln!("Evicted {count} pages from the L2");
+                }
             }
         }
 
@@ -211,6 +216,7 @@ impl Simulator {
 
 
                 if self.config.data_cache.is_write_through() && self.config.l2_cache.is_write_through() {
+                    // Good, do not change!
                     if !dc_hit || access.is_write() {
                         let result = l2.access(access.is_read(), addr, time);
                         self.output.add_l2_access(result);
@@ -219,34 +225,29 @@ impl Simulator {
                         l2_hit = None;
                     }
                 } else if self.config.data_cache.is_write_through() && self.config.l2_cache.is_write_back() {
-                    // debug!("Write through, write back");
-                    let result = l2.access(access.is_read(), addr, time);
-                    if !dc_hit || access.is_write() {
+                    // This works a little, but there is a bug with DC hits
+                    // With only writes, or only reads, this works!
+                    if !dc_hit || (dc_hit && access.is_write()) {
+                        let result = l2.access(access.is_read(), addr, time);
                         self.output.add_l2_access(result);
                         l2_hit = Some(result);
                     } else {
                         l2_hit = None;
                     }
                 } else if self.config.data_cache.is_write_back() && self.config.l2_cache.is_write_through() {
-                    let result = l2.access(access.is_read(), addr, time);
-                    self.output.add_l2_access(result);
-                    if !dc_hit {
+                    if !dc_hit || (dc_hit && access.is_write()) {
+                        let result = l2.access(access.is_read(), addr, time);
+                        self.output.add_l2_access(result);
                         l2_hit = Some(result);
                     } else {
                         l2_hit = None;
                     }
-
-                    // debug!(target: &access.to_string(), "DC hit: {dc_hit}, L2 hit: {:?}", l2_hit);
                 } else {
                     let result = l2.access(access.is_read(), addr, time);
                     if !dc_hit {
                         assert!(self.dc.access(access.is_read(), dc_address, time));
                         self.output.add_l2_access(result);
                         l2_hit = Some(result);
-                    // } else if dc_hit && access.is_read() {
-                    //     let result = l2.access(access.is_read(), addr, time);
-                    //     self.output.add_l2_access(result);
-                    //     l2_hit = Some(result);
                     } else {
                         l2_hit = None
                     }
