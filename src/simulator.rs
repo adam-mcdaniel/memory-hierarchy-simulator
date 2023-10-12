@@ -163,11 +163,6 @@ impl Simulator {
                 self.output.add_main_memory_accesses(count as u64);
             } else if let Some(l2) = &mut self.l2 {
                 // let count = l2.invalidate_page(physical_address, &self.config);
-                if self.config.data_cache.is_write_back() {
-                    for block in blocks {
-                        let l2_addr = BlockAddress::new_l2_cache_address(block, &self.config);
-                    }
-                }
                 let blocks = l2.invalidate_page(physical_address, &self.config);
                 let count = blocks.len();
                 if self.config.l2_cache.is_write_back() {
@@ -216,8 +211,17 @@ impl Simulator {
 
 
                 if self.config.data_cache.is_write_through() && self.config.l2_cache.is_write_through() {
-                    if !dc_hit {
+                    if !dc_hit || access.is_write() {
                         let result = l2.access(access.is_read(), addr, time);
+                        self.output.add_l2_access(result);
+                        l2_hit = Some(result);
+                    } else {
+                        l2_hit = None;
+                    }
+                } else if self.config.data_cache.is_write_through() && self.config.l2_cache.is_write_back() {
+                    // debug!("Write through, write back");
+                    let result = l2.access(access.is_read(), addr, time);
+                    if !dc_hit || access.is_write() {
                         self.output.add_l2_access(result);
                         l2_hit = Some(result);
                     } else {
@@ -227,19 +231,6 @@ impl Simulator {
                     let result = l2.access(access.is_read(), addr, time);
                     self.output.add_l2_access(result);
                     if !dc_hit {
-                        l2_hit = Some(result);
-                    } else {
-                        l2_hit = None;
-                    }
-                } else if self.config.data_cache.is_write_through() && self.config.l2_cache.is_write_back() {
-                    // debug!("Write through, write back");
-                    if !dc_hit {
-                        let result = l2.access(access.is_read(), addr, time);
-                        self.output.add_l2_access(result);
-                        l2_hit = Some(result);
-                    } else if dc_hit && access.is_write() {
-                        let result = l2.access(access.is_read(), addr, time);
-                        self.output.add_l2_access(result);
                         l2_hit = Some(result);
                     } else {
                         l2_hit = None;
