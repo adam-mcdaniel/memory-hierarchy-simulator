@@ -235,7 +235,7 @@ impl Simulator {
                         l2_hit = None;
                     }
                 } else if self.config.data_cache.is_write_back() && self.config.l2_cache.is_write_through() {
-                    if !dc_hit || (dc_hit && access.is_write()) {
+                    if !dc_hit {
                         let result = l2.access(access.is_read(), addr, time);
                         self.output.add_l2_access(result);
                         l2_hit = Some(result);
