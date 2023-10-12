@@ -76,7 +76,7 @@ impl SimulatorConfig {
     }
 
     pub fn get_tlb_tag_bits(&self) -> u64 {
-        // The number of gits in the virtual page number
+        // The number of bits in the virtual page number
         self.page_table.get_virtual_page_number_bits()
     }
 
