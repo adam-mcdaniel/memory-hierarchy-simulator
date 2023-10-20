@@ -5,17 +5,17 @@
 
 ## Overview
 
-I created 2 other versions of the long trace: one copy where all the operations are writes, another copy where all the operations are reads. The read-only trace is very easy to pass because no behavior changes for the different strategies.
+I created 2 other versions of the long trace: one copy where all the operations are writes, another copy where all the operations are reads. The read-only trace is very easy to pass because no behavior changes for the different strategies. To create the read-only and write-only traces, I simply replaced all `W`s with `R`s, and `R`s with `W`s.
 For the write-only trace, the simulator produces the correct trace for every strategy, but messes up the stats for the L2 and main memory references in some cases. For the original long trace input provided in the lab, the output differs at most 361 of the 866428 total lines of output.
 
 Here is a table of the capabilities of my simulator using those traces:
 
-|DC Strategy|L2 Strategy|Works For Read-Only Long-Trace|Works For Write-Only Long-Trace|Works For Provided Long-Trace|
+|DC Strategy|L2 Strategy|Works For Long-Trace With All Reads|Works For Long-Trace With All Writes|Works For Provided Long-Trace|
 |:---------:|:---------:|:----------------------------:|:-----------------------------:|:-----------------------------:|
 |Write Through|Write Through|✅ (**100% correct**)|✅ (**100% correct**)|✅ (**100% correct**)|
-|Write Allocate|Write Through|✅|✅❔ (**trace 100% correct**; L2 hits and main memory ref counters incorrect)|✅❓(361/866428 lines of output differ from reference implementation output)|
-|Write Through|Write Allocate|✅|✅❔ (**trace 100% correct**; main memory ref counter incorrect)|✅❔(12/866428 lines of output differ from reference implementation output; only 6 trace operation results differ)|
-|Write Allocate|Write Allocate|✅|✅❔ (**trace 100% correct**; L2 hits and main memory ref counters incorrect)|✅❓(361/866428 lines of output differ from reference implementation output)|
+|Write Back/Allocate|Write Through|✅ (**100% correct**)|✅❔ (**trace 100% correct**; L2 hits and main memory ref counters incorrect)|✅❓(361/866428 lines of output differ from reference implementation output)|
+|Write Through|Write Back/Allocate|✅ (**100% correct**)|✅❔ (**trace 100% correct**; main memory ref counter incorrect)|✅❔(12/866428 lines of output differ from reference implementation output; only 6 trace operation results differ)|
+|Write Back/Allocate|Write Back/Allocate|✅ (**100% correct**)|✅❔ (**trace 100% correct**; L2 hits and main memory ref counters incorrect)|✅❓(361/866428 lines of output differ from reference implementation output)|
 
 Additionally, my program should work for all configurations of the small trace.
 
