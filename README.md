@@ -12,7 +12,7 @@ Here is a table of the capabilities of my simulator using those traces:
 
 |DC Strategy|L2 Strategy|Works For Read-Only Long-Trace|Works For Write-Only Long-Trace|Works For Provided Long-Trace|
 |:---------:|:---------:|:----------------------------:|:-----------------------------:|:-----------------------------:|
-|Write Through|Write Through|✅|✅ (**100% correct**)|✅ (**100% correct**)|
+|Write Through|Write Through|✅ (**100% correct**)|✅ (**100% correct**)|✅ (**100% correct**)|
 |Write Allocate|Write Through|✅|✅❔ (**trace 100% correct**; L2 hits and main memory ref counters incorrect)|✅❓(361/866428 lines of output differ from reference implementation output)|
 |Write Through|Write Allocate|✅|✅❔ (**trace 100% correct**; main memory ref counter incorrect)|✅❔(12/866428 lines of output differ from reference implementation output; only 6 trace operation results differ)|
 |Write Allocate|Write Allocate|✅|✅❔ (**trace 100% correct**; L2 hits and main memory ref counters incorrect)|✅❓(361/866428 lines of output differ from reference implementation output)|
