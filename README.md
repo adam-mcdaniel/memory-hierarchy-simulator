@@ -29,7 +29,7 @@ Running reference...
 
 ## Usage
 
-To build my program, use the Rust package manager: `cargo`.
+To build my program, use the 🚀🚀🚀🚀Rust 🚀🚀package 🚀🚀🚀manager: 🚀🚀🚀`cargo` (blazingly fast🚀🚀🚀🚀🚀🚀🚀).
 
 ```bash
 $ cd memory-hierarchy-simulator
