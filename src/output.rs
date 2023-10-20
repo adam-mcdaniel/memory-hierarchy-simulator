@@ -1,6 +1,6 @@
 use super::*;
 use core::fmt::{Display, Formatter, Result as FmtResult};
-use log::{debug, error, info, trace, warn};
+
 
 #[derive(Clone, Default)]
 pub struct SimulatorOutput {
@@ -52,6 +52,14 @@ impl SimulatorOutput {
         self.accesses.push(access);
     }
 
+    pub fn add_main_memory_access(&mut self) {
+        self.main_memory_refs += 1;
+    }
+
+    pub fn add_main_memory_accesses(&mut self, count: u64) {
+        self.main_memory_refs += count;
+    }
+
     pub fn add_tlb_access(&mut self, hit: bool) {
         if !self.config.is_tlb_enabled() { return }
 
@@ -89,6 +97,12 @@ impl SimulatorOutput {
             self.l2_misses += 1;
         }
     }
+
+    pub fn add_l2_accesses(&mut self, count: u64) {
+        if !self.config.is_l2_cache_enabled() { return }
+
+        self.l2_hits += count;
+    }
 }
 
 impl Display for SimulatorOutput {
@@ -105,7 +119,7 @@ Address  Page # Off  Tag    Ind Res. Res. Pg # DC Tag Ind Res. L2 Tag Ind Res.
             }
         )?;
 
-        let mut main_mem_accesses = 0;
+        let mut main_mem_accesses = self.main_memory_refs;
         for access in &self.accesses {
             main_mem_accesses += access.get_main_memory_accesses(&self.config);
             writeln!(f, "{}", access)?;
@@ -190,28 +204,37 @@ pub struct AccessOutput {
 
 impl AccessOutput {
     pub fn get_main_memory_accesses(&self, config: &SimulatorConfig) -> u64 {
-        if self.dc_hit {
-            if config.data_cache.is_write_through() {
-                if config.is_l2_cache_enabled() {
-                    if config.l2_cache.is_write_through() {
-                        0
-                    } else {
-                        0
-                    }
+        if self.access.is_read() {
+            if self.dc_hit {
+                0
+            } else if self.l2_hit == Some(true) {
+                0
+            } else {
+                1
+            }
+        } else {
+            // Access is a write
+            if self.dc_hit {
+                if config.data_cache.is_write_through() && config.l2_cache.is_write_through() {
+                    1
+                } else if config.data_cache.is_write_through() && config.l2_cache.is_write_back() {
+                    0
+                } else if config.data_cache.is_write_back() && config.l2_cache.is_write_through() {
+                    0
+                } else if config.data_cache.is_write_back() && config.l2_cache.is_write_back() {
+                    0
                 } else {
                     1
                 }
+            } else if self.l2_hit == Some(true) {
+                if config.l2_cache.is_write_through() {
+                    1
+                } else {
+                    0
+                }
             } else {
-                0
+                1
             }
-        } else if self.l2_hit == Some(true) {
-            if config.l2_cache.is_write_through() {
-                0
-            } else {
-                0
-            }
-        } else {
-            1
         }
     }
 
@@ -310,23 +333,21 @@ impl Display for AccessOutput {
             self.get_dc_index(),
             if self.dc_hit { "hit " } else { "miss" }
         )?;
-        if self.dc_hit || self.l2_hit == None {
+        if self.l2_hit == None {
             // return write!(f, " ");
             return Ok(());
         }
         match self.get_l2_tag() {
-            Some(tag) if !self.dc_hit => write!(f, "{tag:>6x}"),
-            _ => write!(f, "{}", " ".repeat(6)),
+            Some(tag) => write!(f, "{tag:>6x} "),
+            _ => Ok(()),
         }?;
-        write!(f, " ")?;
         match self.get_l2_index() {
-            Some(idx) if !self.dc_hit => write!(f, "{idx:>3x}"),
-            _ => write!(f, "{}", " ".repeat(3)),
+            Some(idx) => write!(f, "{idx:>3x} "),
+            _ => Ok(()),
         }?;
-        write!(f, " ")?;
         match self.l2_hit {
-            Some(hit) if !self.dc_hit => write!(f, "{}", if hit { "hit " } else { "miss" }),
-            _ => write!(f, "{}", " ".repeat(4)),
+            Some(hit) => write!(f, "{}", if hit { "hit " } else { "miss" }),
+            _ => Ok(()),
         }
     }
 }

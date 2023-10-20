@@ -1,5 +1,5 @@
 use super::BlockAddress;
-use log::{debug, error, info, trace, warn};
+use log::{trace};
 
 /// This encodes the eviction policy for a generic cache.
 /// Whenever a block is evicted from a set, this is used to
@@ -50,8 +50,8 @@ impl EvictionPolicy {
                 // Return the block to evict
                 let result = Some(oldest_block_seen);
                 // Evict the block
-                trace!("FIFO policy evicting block {oldest_block_seen:?}");
-                set.evict_tag(oldest_block_seen.get_tag());
+                trace!(target: "evict", "FIFO policy evicting block {oldest_block_seen:?}");
+                assert!(set.evict_tag(oldest_block_seen.get_tag()).is_some());
 
                 result
             }
@@ -73,8 +73,15 @@ impl EvictionPolicy {
                 // Return the block to evict
                 let result = Some(oldest_block_seen);
                 // Evict the block
-                trace!("LRU policy evicting block {oldest_block_seen:?}");
-                set.evict_tag(oldest_block_seen.get_tag());
+                // trace!(target: "evict", "LRU policy evicting block {:x} {oldest_block_seen:?}", oldest_block_seen.get_tag());
+                assert!(set.is_full());
+                assert!(set.evict_tag(oldest_block_seen.get_tag()).is_some());
+                assert!(!set.get_tags().contains(&oldest_block_seen.get_tag()));
+                assert!(!set.is_full());
+                for tag in set.get_tags().iter() {
+                    assert!(*tag != oldest_block_seen.get_tag());
+                    assert!(set.get_block_with_tag(*tag).unwrap().last_access >= oldest_block_seen.last_access)
+                }
                 // Return the block to evict
                 result
             }
@@ -87,8 +94,8 @@ impl EvictionPolicy {
                 // Return the block to evict
                 let result = *set.get_block_with_tag(random_tag).unwrap();
                 // Evict the block
-                trace!("Evicting random block with tag {random_tag:x}");
-                set.evict_tag(random_tag);
+                // trace!(target: "evict", "Evicting random block with tag {random_tag:x}");
+                assert!(set.evict_tag(random_tag).is_some());
                 // Return the block to evict
                 Some(result)
             }
@@ -186,7 +193,12 @@ impl Block {
             self.get_tag(),
             self.get_index()
         );
+        self.dirty = true;
         self.last_access = current_access_time;
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
     }
 }
 
@@ -227,8 +239,9 @@ impl Set {
     /// If the set is full, then evict a block.
     /// This will return the block that was evicted, if any.
     fn allocate_block(&mut self, block: BlockAddress, current_access_time: u64) -> Option<Block> {
+        let _target = &block.to_string();
         let result = if self.is_full() {
-            trace!("Set is full, evicting a block.");
+            // trace!(target: target, "Set is full, evicting a block.");
             // Evict a block
             self.evict()
         } else {
@@ -245,6 +258,7 @@ impl Set {
                     self.block_size,
                     current_access_time,
                 ));
+                
                 break;
             }
         }
@@ -258,7 +272,7 @@ impl Set {
         let policy = self.evict_policy;
         // Evict a block from the set using it
         if let Some(result) = policy.evict(self) {
-            trace!("Evicting the block from set: {:?}", result);
+            // trace!("Evicting the block from set: {:?}", result);
             return Some(result);
         }
         None
@@ -267,14 +281,15 @@ impl Set {
     /// Evict the block with the given tag.
     /// Return the block that was evicted.
     fn evict_tag(&mut self, tag: u64) -> Option<Block> {
-        trace!("Evicting block with tag={tag:x}");
+        // trace!("Evicting block with tag={tag:x}");
         // Find the block with the matching tag and index
         for block_slot in self.blocks.iter_mut() {
             let result = *block_slot;
             if let Some(present_block) = result {
                 if present_block.tag == tag {
-                    trace!("Evicting block {block_slot:?}");
+                    // trace!("Evicting block {block_slot:?}");
                     *block_slot = None;
+                    assert!(!self.get_tags().contains(&tag));
                     return result;
                 }
             }
@@ -335,7 +350,7 @@ impl Set {
         let tag = block_address.tag;
         for block in self.blocks.iter_mut() {
             if let Some(block) = block {
-                if block.tag == tag {
+                if block.tag == tag && block.index == block_address.index {
                     return Some(block);
                 }
             }
@@ -348,7 +363,7 @@ impl Set {
         let tag = block_address.tag;
         for block in self.blocks.iter() {
             if let Some(block) = block {
-                if block.tag == tag {
+                if block.tag == tag && block.index == block_address.index {
                     return Some(block);
                 }
             }
@@ -367,6 +382,7 @@ impl Set {
     pub fn try_write(&mut self, block_address: BlockAddress, current_access_time: u64) -> bool {
         if let Some(block) = self.get_block_with_addr_mut(block_address) {
             // If the block is already in the set, update the last access time
+            assert!(block.get_tag() == block_address.tag && block.get_index() == block_address.index);
             block.write(current_access_time);
             return true;
         }
@@ -379,6 +395,7 @@ impl Set {
     pub fn try_read(&mut self, block_address: BlockAddress, current_access_time: u64) -> bool {
         if let Some(block) = self.get_block_with_addr_mut(block_address) {
             // If the block is already in the set, update the last access time
+            assert!(block.get_tag() == block_address.tag && block.get_index() == block_address.index);
             block.read(current_access_time);
             return true;
         }
@@ -398,10 +415,11 @@ impl Set {
             return None;
         }
         // If the operation failed, allocate the block and then try again
+        assert!(!self.is_hit(block_address));
         let result = self.allocate_block(block_address, current_access_time);
         // It *MUST* work after the block has been allocated.
         // Otherwise it was not allocated properly
-        assert!(self.try_write(block_address, current_access_time));
+        assert!(self.is_hit(block_address));
         result
     }
 
@@ -420,10 +438,11 @@ impl Set {
             return None;
         }
         // If the operation failed, allocate the block and try again
+        assert!(!self.is_hit(block_address));
         let result = self.allocate_block(block_address, current_access_time);
         // It *MUST* work after the block has been allocated.
         // Otherwise it was not allocated properly.
-        assert!(self.try_read(block_address, current_access_time));
+        assert!(self.is_hit(block_address));
         result
     }
 
@@ -487,6 +506,18 @@ impl Cache {
             associativity,
             evict_policy,
         }
+    }
+
+    pub fn get_blocks(&self) -> Vec<&Block> {
+        let mut result = Vec::new();
+        for set in self.sets.iter() {
+            for block in set.blocks.iter() {
+                if let Some(block) = block {
+                    result.push(block);
+                }
+            }
+        }
+        result
     }
 
     /// Create a new fully associative cache.

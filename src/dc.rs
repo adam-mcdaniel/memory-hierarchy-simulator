@@ -1,5 +1,5 @@
 use super::*;
-use log::{debug, info, trace, warn};
+use log::{debug, info, trace};
 
 pub struct DataCache {
     cache: Cache,
@@ -149,23 +149,26 @@ impl DataCache {
     /// Invalidate a physical page from the cache. This gets all the blocks loaded from
     /// the page, and then invalidates them in the cache.
     /// This returns the number of invalidate pages.
-    pub fn invalidate_page(&mut self, physical_address: u64, config: &SimulatorConfig) -> usize {
+    pub fn invalidate_page(&mut self, physical_address: u64, config: &SimulatorConfig) -> Vec<Block> {
         let block_size = config.data_cache.get_block_size();
         let page_size = config.get_page_size();
         let number_of_blocks = (page_size / block_size) as usize;
+        let physical_address = physical_address & !(block_size - 1);
+        debug!("DC Invalidating {number_of_blocks} blocks = {} bytes at {physical_address:x}", number_of_blocks as u64 * config.data_cache.get_block_size());
         assert!(number_of_blocks as u64 * block_size == page_size);
-        let mut invalidated_block_count = 0;
+        let mut result = vec![];
         for block in 0..number_of_blocks {
             let block_address = BlockAddress::new_data_cache_address(
                 physical_address + block as u64 * block_size,
                 config,
             );
-
+            // debug!("Invalidating DC block {block_address}");
             if let Some(block) = self.cache.invalidate(block_address) {
-                invalidated_block_count += 1;
+                // invalidated_block_count += 1;
                 trace!("Invalidated DC block {block:?}");
+                result.push(block);
             }
         }
-        invalidated_block_count
+        result
     }
 }

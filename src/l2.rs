@@ -1,5 +1,5 @@
 use super::*;
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace};
 
 pub struct L2Cache {
     cache: Cache,
@@ -103,6 +103,7 @@ impl L2Cache {
     pub fn write(&mut self, address: BlockAddress, current_access_time: u64) -> bool {
         self.total_writes += 1;
         let result = if self.is_write_allocate {
+            debug!("L2 Write-allocating block {address}");
             self.cache
                 .is_write_and_allocate_hit(address, current_access_time)
         } else {
@@ -149,24 +150,27 @@ impl L2Cache {
     /// Invalidate a physical page from the cache. This gets all the blocks loaded from
     /// the page, and then invalidates them in the cache.
     /// This returns the number of invalidate pages.
-    pub fn invalidate_page(&mut self, physical_address: u64, config: &SimulatorConfig) -> usize {
+    pub fn invalidate_page(&mut self, physical_address: u64, config: &SimulatorConfig) -> Vec<Block> {
         let block_size = config.l2_cache.get_block_size();
         let page_size = config.get_page_size();
         let number_of_blocks = (page_size / block_size) as usize;
+        let physical_address = physical_address & !(page_size - 1);
+        debug!("L2 Invalidating {number_of_blocks} blocks = {} bytes at {physical_address:x}", number_of_blocks as u64 * config.l2_cache.get_block_size());
         assert!(number_of_blocks as u64 * block_size == page_size);
-        let mut invalidated_block_count = 0;
+        let mut result = vec![];
         for block in 0..number_of_blocks {
             let block_address = BlockAddress::new_l2_cache_address(
                 physical_address + block as u64 * block_size,
                 config,
             );
 
+            // debug!("Invalidating L2 block {block_address}");
             if let Some(block) = self.cache.invalidate(block_address) {
-                invalidated_block_count += 1;
                 trace!("Invalidated L2 block {block:?}");
+                result.push(block)
             }
         }
 
-        invalidated_block_count
+        result
     }
 }

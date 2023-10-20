@@ -1,5 +1,5 @@
 use super::*;
-use log::{debug, info, trace, warn};
+use log::{debug, info, trace};
 
 pub struct TLBCache {
     cache: Cache,
@@ -37,5 +37,31 @@ impl TLBCache {
     pub fn translate(&mut self, address: BlockAddress, current_access_time: u64) -> bool {
         self.cache
             .is_read_and_allocate_hit(address, current_access_time)
+    }
+
+
+    /// Invalidate a physical page from the cache. This gets all the blocks loaded from
+    /// the page, and then invalidates them in the cache.
+    /// This returns the number of invalidate pages.
+    pub fn invalidate_page(&mut self, physical_address: u64, page_table: &mut PageTable, config: &SimulatorConfig) -> Vec<Block> {
+        // Invalidate all the blocks associated with this physical page.
+        // let page_number = physical_address / config.get_page_size();
+
+        let mut invalidated_blocks = Vec::new();
+
+        for entry in page_table.get_entries() {
+            if entry.get_physical_address() == physical_address {
+                let addr = entry.get_virtual_address();
+                if let Some(block) = self.cache.invalidate(BlockAddress::new_tlb_address(addr, config)) {
+                    trace!("Invalidated TLB block {block:?}");
+                    invalidated_blocks.push(block);
+                }
+            }
+        }
+        // page_table.invalidate_page_number(physical_address / config.get_page_size());
+        let number_of_blocks = invalidated_blocks.len();
+        debug!("TLB Invalidating {number_of_blocks} blocks = {} bytes at {physical_address:x}", number_of_blocks as u64 * config.data_cache.get_block_size());
+        
+        invalidated_blocks
     }
 }
