@@ -1,12 +1,11 @@
-
 trace=long-trace.dat
 
 run:
-	@ - rm mine.txt solution.txt mine-short.txt solution-short.txt
+	@ - rm test.txt reference.txt
 	@cargo build --release
 	@echo "Running mine..."
-	@./target/release/memory-hierarchy < $(trace) > mine.txt
+	@./target/release/memory-hierarchy < $(trace) > test.txt
 	@echo "Running reference..."
-	@ ./memhier_ref < $(trace) > solution.txt
+	@ ./memhier_ref < $(trace) > reference.txt
 	
-	@echo `diff mine.txt solution.txt | grep "<" | wc -l` lines differ in outputs
+	@echo `diff test.txt reference.txt | grep "<" | wc -l` lines differ in outputs
