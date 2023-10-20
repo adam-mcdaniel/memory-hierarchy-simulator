@@ -39,13 +39,22 @@ $ # You can use this command to copy the compiled executable to the working dire
 $ cp target/release/memory-hierarchy .
 ```
 
-You can run my program by passing the `trace.dat` file as a command line argument, or by passing it as standard input.
+You can run my program by passing the trace file as a command line argument, or by passing it as standard input.
 
 ```bash
 $ # Compile the simulator in release mode
 $ cargo build --release
 $ # Use STDIN to supply the trace like the reference executable
-$ ./target/release/memory-hierarchy < trace.dat > output.txt
+$ ./target/release/memory-hierarchy < long-trace.dat > output.txt
 $ # Pass file as a command line argument
-$ ./target/release/memory-hierarchy trace.dat > output.txt
+$ ./target/release/memory-hierarchy long-trace.dat > output.txt
+```
+
+#### Logging
+
+If you want to run with logging, use the `RUST_LOG` environment variable. You can choose from `info`, `debug`, or `trace` log levels for increasing verbosity.
+
+```bash
+$ # Run the program with `info` log-level
+$ RUST_LOG=info ./target/release/memory-hierarchy < long-trace.dat > output.txt
 ```
