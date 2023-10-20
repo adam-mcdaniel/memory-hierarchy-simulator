@@ -1,5 +1,5 @@
 use super::*;
-use log::{debug, error, info, trace, warn};
+use log::{info, trace};
 
 pub struct Simulator {
     l2: Option<L2Cache>,
@@ -114,7 +114,6 @@ impl Simulator {
         assert!(self.health_check().is_ok());
         let virtual_address = access.address();
         let physical_address;
-        let tlb_address = BlockAddress::new_tlb_address(virtual_address, &self.config);
         
         let time = self.get_time();
         trace!("Access {access} at {time}");

@@ -1,5 +1,5 @@
 use super::*;
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace};
 
 pub struct L2Cache {
     cache: Cache,

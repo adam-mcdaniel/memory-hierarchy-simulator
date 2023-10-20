@@ -1,5 +1,5 @@
 use super::*;
-use log::{debug, info, trace, warn};
+use log::{debug, info, trace};
 
 pub struct DataCache {
     cache: Cache,

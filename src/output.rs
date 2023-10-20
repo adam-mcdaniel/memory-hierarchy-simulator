@@ -1,6 +1,6 @@
 use super::*;
 use core::fmt::{Display, Formatter, Result as FmtResult};
-use log::{debug, error, info, trace, warn};
+
 
 #[derive(Clone, Default)]
 pub struct SimulatorOutput {

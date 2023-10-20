@@ -1,6 +1,6 @@
 use super::SimulatorConfig;
 
-use log::{debug, error, info, trace, warn};
+use log::{error, info, trace};
 
 #[derive(Clone, Debug)]
 pub struct PageTable {

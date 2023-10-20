@@ -1,5 +1,5 @@
 use super::BlockAddress;
-use log::{debug, error, info, trace, warn};
+use log::{trace};
 
 /// This encodes the eviction policy for a generic cache.
 /// Whenever a block is evicted from a set, this is used to
@@ -239,7 +239,7 @@ impl Set {
     /// If the set is full, then evict a block.
     /// This will return the block that was evicted, if any.
     fn allocate_block(&mut self, block: BlockAddress, current_access_time: u64) -> Option<Block> {
-        let target = &block.to_string();
+        let _target = &block.to_string();
         let result = if self.is_full() {
             // trace!(target: target, "Set is full, evicting a block.");
             // Evict a block
