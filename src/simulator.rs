@@ -99,6 +99,7 @@ impl Simulator {
 
     fn age(&mut self) {
         self.time += 1;
+        info!("Time is now {time}", time = self.time);
     }
 
     pub fn simulate(&mut self, trace: Trace) -> SimulatorOutput {
@@ -114,9 +115,10 @@ impl Simulator {
         let virtual_address = access.address();
         let physical_address;
         let tlb_address = BlockAddress::new_tlb_address(virtual_address, &self.config);
-
+        
         let time = self.get_time();
-        let is_tlb_hit;
+        trace!("Access {access} at {time}");
+        let mut is_tlb_hit;
         let tlb_address;
         let is_page_table_hit;
         match (&mut self.tlb, &mut self.page_table) {
@@ -128,6 +130,7 @@ impl Simulator {
                 // info!("About to translate page table address...");
                 (physical_address, is_page_table_hit) =
                     page_table.translate(virtual_address, time).unwrap();
+                is_tlb_hit = is_tlb_hit && is_page_table_hit;
             }
             (None, Some(page_table)) => {
                 is_tlb_hit = false;
@@ -154,6 +157,14 @@ impl Simulator {
 
         if is_page_fault {
             // let count = self.dc.invalidate_page(physical_address & !(self.config.get_page_size() - 1), &self.config);
+            if let (Some(tlb), Some(pt)) = (&mut self.tlb, &mut self.page_table) {
+                let blocks = tlb.invalidate_page(physical_address, pt, &self.config);
+                let count = blocks.len();
+                if count > 0 {
+                    eprintln!("Evicted {count} pages from the TLB");
+                }
+
+            }
             let blocks = self.dc.invalidate_page(physical_address, &self.config);
 
             let count = blocks.len();
@@ -163,14 +174,14 @@ impl Simulator {
             // self.output.add_main_memory_accesses(count as u64);
 
             if self.config.data_cache.is_write_back() && !self.config.is_l2_cache_enabled() {
-                self.output.add_main_memory_accesses(count as u64);
+                // self.output.add_main_memory_accesses(count as u64);
             } else if let Some(l2) = &mut self.l2 {
                 // let count = l2.invalidate_page(physical_address, &self.config);
                 let blocks = l2.invalidate_page(physical_address, &self.config);
                 let count = blocks.len();
-                if self.config.l2_cache.is_write_back() {
-                    self.output.add_main_memory_accesses(count as u64);
-                }
+                // if self.config.l2_cache.is_write_back() {
+                //     self.output.add_main_memory_accesses(count as u64);
+                // }
                 if count > 0 {
                     eprintln!("Evicted {count} pages from the L2");
                 }
@@ -235,22 +246,45 @@ impl Simulator {
                         l2_hit = None;
                     }
                 } else if self.config.data_cache.is_write_back() && self.config.l2_cache.is_write_through() {
-                    if !dc_hit {
+                    // let result = l2.access(access.is_read(), addr, time);
+                    // self.output.add_l2_access(result);
+                    // if dc_hit {
+                    //     l2_hit = None;
+                    // } else {
+                    //     l2_hit = Some(result);
+                    // }
+                    if access.is_write() {
                         let result = l2.access(access.is_read(), addr, time);
                         self.output.add_l2_access(result);
-                        l2_hit = Some(result);
+                        if !dc_hit {
+                            l2_hit = Some(result);
+                        } else {
+                            l2_hit = None;
+                        }
                     } else {
-                        l2_hit = None;
+                        if !dc_hit {
+                            let result = l2.access(access.is_read(), addr, time);
+                            self.output.add_l2_access(result);
+                            l2_hit = Some(result);
+                        } else {
+                            l2_hit = None;
+                        }
                     }
-                } else {
-                    let result = l2.access(access.is_read(), addr, time);
-                    if !dc_hit {
+                } else if self.config.data_cache.is_write_back() && self.config.l2_cache.is_write_back() {
+                    if !dc_hit || access.is_write() {
+                        let result = l2.access(access.is_read(), addr, time);
                         assert!(self.dc.access(access.is_read(), dc_address, time));
                         self.output.add_l2_access(result);
-                        l2_hit = Some(result);
+                        if dc_hit {
+                            l2_hit = None;
+                        } else {
+                            l2_hit = Some(result);
+                        }
                     } else {
                         l2_hit = None
                     }
+                } else {
+                    unreachable!()
                 }
             }
             None => {

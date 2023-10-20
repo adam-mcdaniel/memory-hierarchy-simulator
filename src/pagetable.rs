@@ -19,6 +19,15 @@ pub struct PageTable {
 }
 
 impl PageTable {
+    pub fn get_entries(&self) -> Vec<PageTableEntry> {
+        self.entries
+            .clone()
+            .into_iter()
+            .filter(|entry| entry.is_some())
+            .map(|entry| entry.unwrap())
+            .collect()
+    }
+
     fn new(virtual_pages: u64, physical_pages: u64, page_size: u64) -> Self {
         info!("Creating new page table with {virtual_pages} virtual pages, {physical_pages} physical pages, and a page size of {page_size}");
         let entries = vec![None; virtual_pages as usize];
@@ -164,7 +173,7 @@ impl PageTable {
     }
 
     /// Invalidate all the page table entries that are mapped to a given physical page number.
-    fn invalidate_page_number(&mut self, physical_page_number: u64) {
+    pub fn invalidate_page_number(&mut self, physical_page_number: u64) {
         // Go through all the entries that reference the physical page number and invalidate them.
         trace!("Invalidating entries for page #{physical_page_number:x}");
         for entry in self.entries.iter_mut() {
@@ -181,7 +190,7 @@ impl PageTable {
     }
 
     /// Invalidate all the page table entries that are mapped to a page associated with a physical address.
-    fn invalidate_addr(&mut self, physical_address: u64) {
+    pub fn invalidate_addr(&mut self, physical_address: u64) {
         let physical_page_number = self.get_physical_page_number(physical_address);
         self.invalidate_page_number(physical_page_number);
     }

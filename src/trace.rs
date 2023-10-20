@@ -96,26 +96,6 @@ impl BlockAddress {
 
         let tag_bits = 32 - index_bits - offset_bits;
 
-        // eprintln!("address: {x:08x} {x:032b}", x = address);
-        // eprintln!(
-        //     "tag:     {x:08x} {x:0bits$b}",
-        //     x = tag,
-        //     bits = tag_bits as usize
-        // );
-        // let space = " ".repeat(tag_bits as usize);
-        // eprintln!(
-        //     "index:   {x:08x} {space}{x:0bits$b}",
-        //     x = index,
-        //     bits = index_bits as usize
-        // );
-        // if offset_bits > 0 {
-        //     let space = " ".repeat((tag_bits + index_bits) as usize);
-        //     eprintln!(
-        //         "offset:  {x:08x} {space}{x:0bits$b}",
-        //         x = offset,
-        //         bits = offset_bits as usize
-        //     );
-        // }
         Self {
             tag_bits,
             index_bits,
@@ -197,8 +177,9 @@ impl Trace {
 
     /// Reads a trace from stdin.
     pub fn from_stdin() -> Self {
+        let mut buffer = BufReader::new(std::io::stdin());
         let mut trace = Self::new();
-        while let Some(operation) = Operation::from_stdin() {
+        while let Some(operation) = Operation::from_buffer(&mut buffer) {
             trace.operations.push(operation);
         }
         trace

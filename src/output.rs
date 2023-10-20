@@ -220,7 +220,7 @@ impl AccessOutput {
                 } else if config.data_cache.is_write_through() && config.l2_cache.is_write_back() {
                     0
                 } else if config.data_cache.is_write_back() && config.l2_cache.is_write_through() {
-                    1
+                    0
                 } else if config.data_cache.is_write_back() && config.l2_cache.is_write_back() {
                     0
                 } else {
