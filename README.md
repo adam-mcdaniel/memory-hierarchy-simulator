@@ -6,7 +6,7 @@
 ## Overview
 
 I created 2 other versions of the long trace: one copy where all the operations are writes, another copy where all the operations are reads. The read-only trace is very easy to pass because no behavior changes for the different strategies. To create the read-only and write-only traces, I simply replaced all `W`s with `R`s, and `R`s with `W`s.
-For the write-only trace, the simulator produces the correct trace for every strategy, but messes up *just the stat counters* for the L2 and main memory references in some cases. For the original long trace input provided in the lab, the output differs at most 361 of the 866428 total lines of output.
+For the write-only trace, the simulator produces the correct trace for every strategy, but messes up *just the stat counters* for the L2 and main memory references in some cases. For the original long trace input provided in the lab, however, the output differs at most 361 of the 866428 total lines of output.
 
 Here is a table of the capabilities of my simulator using those traces:
 
