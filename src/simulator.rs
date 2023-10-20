@@ -1,5 +1,5 @@
 use super::*;
-use log::{info, trace};
+use log::trace;
 
 pub struct Simulator {
     l2: Option<L2Cache>,
@@ -99,7 +99,7 @@ impl Simulator {
 
     fn age(&mut self) {
         self.time += 1;
-        info!("Time is now {time}", time = self.time);
+        trace!("Time is now {time}", time = self.time);
     }
 
     pub fn simulate(&mut self, trace: Trace) -> SimulatorOutput {
