@@ -11,15 +11,6 @@ pub enum Operation {
 }
 
 impl Operation {
-    /// Reads an operation from stdin.
-    fn from_stdin() -> Option<Self> {
-        // <accesstype>:<hexaddress>
-        // where <accesstype> is either R or W
-        let stdin = std::io::stdin();
-        let mut buffer = std::io::BufReader::new(stdin.lock());
-        Self::from_buffer(&mut buffer)
-    }
-
     fn from_buffer<R>(buffer: &mut BufReader<R>) -> Option<Self>
     where
         R: Read,

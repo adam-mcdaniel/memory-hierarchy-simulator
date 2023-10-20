@@ -5,30 +5,31 @@
 
 ## Overview
 
-Here is a table of the capabilities of my simulator.
+I created 2 other versions of the long trace: one copy where all the operations are writes, another copy where all the operations are reads. The read-only trace is very easy to pass because no behavior changes for the different strategies.
+For the write-only trace, the simulator produces the correct trace for every strategy, but messes up the stats for the L2 and main memory references in some cases. For the original long trace input provided in the lab, the output differs at most 361 of the 866428 total lines of output.
 
+Here is a table of the capabilities of my simulator using those traces:
 
-|DC Strategy|L2 Strategy|Works for Read-Only Long-Trace|Works for Write-Only Long-Trace|Works for Read + Write Long-Trace|
+|DC Strategy|L2 Strategy|Works For Read-Only Long-Trace|Works For Write-Only Long-Trace|Works For Provided Long-Trace|
 |:---------:|:---------:|:----------------------------:|:-----------------------------:|:-----------------------------:|
-|Write Through|Write Through|✅|✅|✅|
+|Write Through|Write Through|✅|✅ (**100% correct**)|✅ (**100% correct**)|
 |Write Allocate|Write Through|✅|✅❔ (**trace 100% correct**; L2 hits and main memory ref counters incorrect)|✅❓(361/866428 lines of output differ from reference implementation output)|
-|Write Through|Write Allocate|✅|✅ (**trace 100% correct**; main memory ref counter incorrect)|✅❔(8/866428 lines of output differ from reference implementation output; only 5 trace operation results differ)|
+|Write Through|Write Allocate|✅|✅ (**trace 100% correct**; main memory ref counter incorrect)|✅❔(12/866428 lines of output differ from reference implementation output; only 6 trace operation results differ)|
 |Write Allocate|Write Allocate|✅|✅❔ (**trace 100% correct**; L2 hits and main memory ref counters incorrect)|✅❓(361/866428 lines of output differ from reference implementation output)|
 
-Here are the commands I used to calculate the differences in lines.
+Additionally, my program should work for all configurations of the small trace.
+
+You can use my Makefile to compare my output against the reference. Pass the trace to test with using `trace=` on the command line.
 ```bash
-$ # Run my program, save to mine.txt
-$ cargo run --release < trace.dat > mine.txt
-$ # Run Jantz's program, save to solution.txt
-$ ./memhier_ref < trace.dat > solution.txt
-$ # Count the number of lines that start with a brace referencing a line from my file.
-$ # This is exactly equal to the number of lines that differ between the files.
-$ diff mine.txt solution.txt | grep "<" | wc
+$ make trace=long-trace.dat
+Running mine...
+Running reference...
+0 lines differ in outputs
 ```
 
 ## Usage
 
-To build my program, use `cargo`.
+To build my program, use the Rust package manager: `cargo`.
 
 ```bash
 $ cd memory-hierarchy-simulator

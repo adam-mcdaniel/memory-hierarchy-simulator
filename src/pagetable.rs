@@ -115,11 +115,34 @@ impl PageTable {
         self.physical_page_bookkeeping[physical_page_number as usize]
     }
 
+    /*
     /// Get the last access time for the page associated with a physical address.
     fn get_last_access_time_addr(&self, physical_address: u64) -> u64 {
         let physical_page_number = self.get_physical_page_number(physical_address);
         self.get_last_access_time_page_number(physical_page_number)
     }
+    
+    /// Set the last access time for the page associated with a physical address.
+    /// This will update the LRU data for the page.
+    fn set_last_access_time_addr(&mut self, physical_address: u64, current_access_time: u64) {
+        let physical_page_number = self.get_physical_page_number(physical_address);
+        self.set_last_access_time_page_number(physical_page_number, current_access_time);
+    }
+
+    /// This will free the page associated with a physical address.
+    /// This will set its last access time to zero, so that it will
+    /// be the least recently used.
+    fn mark_addr_free(&mut self, physical_address: u64) {
+        trace!("Marking page associated with {physical_address:x} as free");
+        self.set_last_access_time_addr(physical_address, 0);
+        self.invalidate_addr(physical_address);
+    }
+    
+    /// Is the page associated with the physical address free?
+    fn is_addr_free(&self, physical_addr: u64) -> bool {
+        self.get_last_access_time_addr(physical_addr) == 0
+    }
+     */
 
     /// Set the last access time for the page associated with the physical page number.
     /// This will update the LRU data for the page.
@@ -137,13 +160,6 @@ impl PageTable {
         }
     }
 
-    /// Set the last access time for the page associated with a physical address.
-    /// This will update the LRU data for the page.
-    fn set_last_access_time_addr(&mut self, physical_address: u64, current_access_time: u64) {
-        let physical_page_number = self.get_physical_page_number(physical_address);
-        self.set_last_access_time_page_number(physical_page_number, current_access_time);
-    }
-
     /// This will free the page associated with a physical page number.
     /// This will set its last access time to zero, so that it will
     /// be the least recently used.
@@ -153,23 +169,9 @@ impl PageTable {
         self.invalidate_page_number(physical_page_number);
     }
 
-    /// This will free the page associated with a physical address.
-    /// This will set its last access time to zero, so that it will
-    /// be the least recently used.
-    fn mark_addr_free(&mut self, physical_address: u64) {
-        trace!("Marking page associated with {physical_address:x} as free");
-        self.set_last_access_time_addr(physical_address, 0);
-        self.invalidate_addr(physical_address);
-    }
-
     /// Is the page with the physical page number free?
     fn is_page_number_free(&self, physical_page_number: u64) -> bool {
         self.get_last_access_time_page_number(physical_page_number) == 0
-    }
-
-    /// Is the page associated with the physical address free?
-    fn is_addr_free(&self, physical_addr: u64) -> bool {
-        self.get_last_access_time_addr(physical_addr) == 0
     }
 
     /// Invalidate all the page table entries that are mapped to a given physical page number.
